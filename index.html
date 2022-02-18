@@ -1,0 +1,27 @@
+<html>
+  <head>
+    <title>VIM Viewer</title>
+  </head>
+  <body>
+    <script src="https://unpkg.com/three@0.133.1/build/three.min.js"></script>
+    <script src="https://unpkg.com/vim-webgl-viewer"></script>
+    <script>
+
+      const viewer = new vim.Viewer()
+
+      viewer.loadVim(
+        'https://vim.azureedge.net/samples/residence.vim',
+        {
+          rotation: { x: 270, y: 0, z: 0 },
+        }
+      )
+
+      ModelLoaded.postMessage('Model loaded successfully !')
+
+      function resetCameraPosition(){
+        viewer.reset()
+        ResetModel.postMessage('Model reset successfully !')
+      }
+    </script>
+  </body>
+</html>
