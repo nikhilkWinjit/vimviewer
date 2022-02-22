@@ -4,7 +4,7 @@ var __publicField = (obj, key, value) => {
   __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
   return value;
 };
-var vim = function(exports, THREE2) {
+var VIM = function(exports, THREE2) {
   "use strict";
   function _interopNamespace(e) {
     if (e && e.__esModule)
@@ -124,6 +124,1049 @@ var vim = function(exports, THREE2) {
   };
   var deepmerge_1 = deepmerge;
   var cjs = deepmerge_1;
+  class ViewerSettings {
+    constructor(options) {
+      __publicField(this, "options");
+      __publicField(this, "getCanvasResizeDelay", () => this.options.canvas.resizeDelay);
+      __publicField(this, "getCanvasId", () => this.options.canvas.id);
+      __publicField(this, "getGroundPlaneShow", () => this.options.groundPlane.show);
+      __publicField(this, "getGroundPlaneColor", () => toRGBColor(this.options.groundPlane.color));
+      __publicField(this, "getGroundPlaneTextureUrl", () => this.options.groundPlane.texture);
+      __publicField(this, "getGroundPlaneOpacity", () => this.options.groundPlane.opacity);
+      __publicField(this, "getGroundPlaneSize", () => this.options.groundPlane.size);
+      __publicField(this, "getSkylightColor", () => toHSLColor(this.options.skylight.skyColor));
+      __publicField(this, "getSkylightGroundColor", () => toHSLColor(this.options.skylight.groundColor));
+      __publicField(this, "getSkylightIntensity", () => this.options.skylight.intensity);
+      __publicField(this, "getSunlightColor", () => toHSLColor(this.options.sunLight.color));
+      __publicField(this, "getSunlightPosition", () => toVec$1(this.options.sunLight.position));
+      __publicField(this, "getSunlightIntensity", () => this.options.sunLight.intensity);
+      __publicField(this, "getCameraNear", () => this.options.camera.near);
+      __publicField(this, "getCameraFar", () => this.options.camera.far);
+      __publicField(this, "getCameraFov", () => this.options.camera.fov);
+      __publicField(this, "getCameraZoom", () => this.options.camera.zoom);
+      __publicField(this, "getCameraShowGizmo", () => this.options.camera.showGizmo);
+      __publicField(this, "getCameraIsOrbit", () => this.options.camera.controls.orbit);
+      __publicField(this, "getCameraMoveSpeed", () => this.options.camera.controls.moveSpeed);
+      __publicField(this, "getCameraRotateSpeed", () => this.options.camera.controls.rotateSpeed);
+      __publicField(this, "getCameraOrbitSpeed", () => this.options.camera.controls.orbitSpeed);
+      __publicField(this, "getCameraReferenceVimSize", () => this.options.camera.controls.vimReferenceSize);
+      const fallback = {
+        canvas: {
+          id: void 0,
+          resizeDelay: 200
+        },
+        camera: {
+          near: 0.01,
+          far: 15e3,
+          fov: 50,
+          zoom: 1,
+          controls: {
+            orbit: true,
+            vimReferenceSize: 1,
+            rotateSpeed: 1,
+            orbitSpeed: 1,
+            moveSpeed: 1
+          },
+          showGizmo: true
+        },
+        groundPlane: {
+          show: false,
+          texture: null,
+          opacity: 1,
+          color: { r: 255, g: 255, b: 255 },
+          size: 3
+        },
+        skylight: {
+          skyColor: { h: 0.6, s: 1, l: 0.6 },
+          groundColor: { h: 0.095, s: 1, l: 0.75 },
+          intensity: 0.6
+        },
+        sunLight: {
+          position: { x: -47, y: 22, z: -45 },
+          color: { h: 0.1, s: 1, l: 0.95 },
+          intensity: 1
+        }
+      };
+      this.options = options ? cjs(fallback, options, void 0) : fallback;
+    }
+  }
+  function toRGBColor(c) {
+    return new THREE__namespace.Color(c.r / 255, c.g / 255, c.b / 255);
+  }
+  function toHSLColor(obj) {
+    return new THREE__namespace.Color().setHSL(obj.h, obj.s, obj.l);
+  }
+  function toVec$1(obj) {
+    return new THREE__namespace.Vector3(obj.x, obj.y, obj.z);
+  }
+  class CameraGizmo {
+    constructor(renderer) {
+      __publicField(this, "_renderer");
+      __publicField(this, "_scale");
+      __publicField(this, "_fov");
+      __publicField(this, "_box");
+      __publicField(this, "_wireframe");
+      __publicField(this, "_material");
+      __publicField(this, "_materialAlways");
+      __publicField(this, "_gizmos");
+      __publicField(this, "_timeout");
+      __publicField(this, "_active");
+      this._renderer = renderer;
+    }
+    show(show = true) {
+      if (!this._active)
+        return;
+      if (!this._gizmos) {
+        this.createGizmo();
+      }
+      clearTimeout(this._timeout);
+      this._gizmos.visible = show;
+      if (show) {
+        this._timeout = setTimeout(() => this._gizmos.visible = false, 1e3);
+      }
+    }
+    setPosition(position) {
+      var _a;
+      (_a = this._gizmos) == null ? void 0 : _a.position.copy(position);
+    }
+    applySettings(settings) {
+      this._active = settings.getCameraShowGizmo();
+      this._fov = settings.getCameraFov();
+    }
+    setScale(scale = 1) {
+      var _a;
+      (_a = this._gizmos) == null ? void 0 : _a.scale.set(scale, scale, scale);
+      this._scale = scale;
+    }
+    createGizmo() {
+      this._box = new THREE__namespace.SphereGeometry(1);
+      this._wireframe = new THREE__namespace.WireframeGeometry(this._box);
+      this._material = new THREE__namespace.LineBasicMaterial({
+        depthTest: true,
+        opacity: 0.5,
+        color: new THREE__namespace.Color(255),
+        transparent: true
+      });
+      this._materialAlways = new THREE__namespace.LineBasicMaterial({
+        depthTest: false,
+        opacity: 0.05,
+        color: new THREE__namespace.Color(255),
+        transparent: true
+      });
+      this._gizmos = new THREE__namespace.Group();
+      this._gizmos.add(new THREE__namespace.LineSegments(this._wireframe, this._material));
+      this._gizmos.add(new THREE__namespace.LineSegments(this._wireframe, this._materialAlways));
+      this._renderer.addObject(this._gizmos);
+      this.setScale(this._scale);
+    }
+    dispose() {
+      this._box.dispose();
+      this._wireframe.dispose();
+      this._material.dispose();
+      this._materialAlways.dispose();
+      this._box = null;
+      this._wireframe = null;
+      this._material = null;
+      this._materialAlways = null;
+      this._renderer.removeObject(this._gizmos);
+      this._gizmos = null;
+    }
+  }
+  const DEG2RAD = Math.PI / 180;
+  const _lut = [];
+  for (let i = 0; i < 256; i++) {
+    _lut[i] = (i < 16 ? "0" : "") + i.toString(16);
+  }
+  const DIRECTIONS = {
+    forward: new THREE__namespace.Vector3(0, 0, -1),
+    back: new THREE__namespace.Vector3(0, 0, 1),
+    left: new THREE__namespace.Vector3(-1, 0, 0),
+    right: new THREE__namespace.Vector3(1, 0, 0),
+    up: new THREE__namespace.Vector3(0, 1, 0),
+    down: new THREE__namespace.Vector3(0, -1, 0)
+  };
+  class Camera {
+    constructor(renderer, settings) {
+      __publicField(this, "gizmo");
+      __publicField(this, "camera");
+      __publicField(this, "inputVelocity");
+      __publicField(this, "velocity");
+      __publicField(this, "impulse");
+      __publicField(this, "speedMultiplier");
+      __publicField(this, "orbitalTarget");
+      __publicField(this, "minOrbitalDistance", 0.02);
+      __publicField(this, "currentOrbitalDistance");
+      __publicField(this, "orbitalTargetDistance");
+      __publicField(this, "lerpSecondsDuration");
+      __publicField(this, "lerpMsEndtime");
+      __publicField(this, "_orbitMode", false);
+      __publicField(this, "_vimReferenceSize");
+      __publicField(this, "_sceneSizeMultiplier", 1);
+      __publicField(this, "_velocityBlendFactor", 1e-4);
+      __publicField(this, "_moveSpeed", 0.8);
+      __publicField(this, "_rotateSpeed", 1);
+      __publicField(this, "_orbitSpeed", 1);
+      __publicField(this, "_wheelSpeed", 0.2);
+      this.camera = renderer.camera;
+      this.gizmo = new CameraGizmo(renderer);
+      this.applySettings(settings);
+      this.inputVelocity = new THREE__namespace.Vector3(0, 0, 0);
+      this.velocity = new THREE__namespace.Vector3(0, 0, 0);
+      this.impulse = new THREE__namespace.Vector3(0, 0, 0);
+      this.speedMultiplier = 0;
+      this._sceneSizeMultiplier = 1;
+      this.orbitalTarget = new THREE__namespace.Vector3(0, 0, 0);
+      this.currentOrbitalDistance = this.camera.position.clone().sub(this.orbitalTarget).length();
+      this.orbitalTargetDistance = this.currentOrbitalDistance;
+    }
+    get orbitMode() {
+      return this._orbitMode;
+    }
+    set orbitMode(value) {
+      this._orbitMode = value;
+      this.gizmo.show(value);
+    }
+    reset() {
+      this.camera.position.set(0, 0, -5);
+      this.camera.lookAt(0, 0, 1);
+      this.inputVelocity.set(0, 0, 0);
+      this.velocity.set(0, 0, 0);
+      this.impulse.set(0, 0, 0);
+      this.currentOrbitalDistance = 5;
+      this.orbitalTarget.set(0, 0, 0);
+      this.orbitalTargetDistance = this.currentOrbitalDistance;
+    }
+    lookAtPosition(position) {
+      this.camera.lookAt(position);
+    }
+    frameSphere(sphere) {
+      if (!sphere) {
+        this.reset();
+        return;
+      }
+      this.camera.position.copy(sphere.center.clone().add(new THREE__namespace.Vector3(0, sphere.radius, -2 * sphere.radius)));
+      this.camera.lookAt(sphere.center);
+      this.orbitalTarget = sphere.center;
+      this.currentOrbitalDistance = this.orbitalTarget.clone().sub(this.camera.position).length();
+      this.orbitalTargetDistance = this.currentOrbitalDistance;
+    }
+    applySettings(settings) {
+      this.orbitMode = settings.getCameraIsOrbit();
+      this.camera.fov = settings.getCameraFov();
+      this.camera.zoom = settings.getCameraZoom();
+      this.camera.near = settings.getCameraNear();
+      this.camera.far = settings.getCameraFar();
+      this.camera.updateProjectionMatrix();
+      this._moveSpeed = settings.getCameraMoveSpeed();
+      this._rotateSpeed = settings.getCameraRotateSpeed();
+      this._orbitSpeed = settings.getCameraOrbitSpeed();
+      this.gizmo.applySettings(settings);
+      this._vimReferenceSize = settings.getCameraReferenceVimSize();
+    }
+    adaptToContent(sphere) {
+      this._sceneSizeMultiplier = sphere.radius / this._vimReferenceSize;
+      const gizmoSize = Math.tan(DEG2RAD * this.camera.fov / 2) * (this._sceneSizeMultiplier / 10);
+      this.gizmo.setScale(gizmoSize);
+      this.gizmo.show(this.orbitMode);
+    }
+    addLocalImpulse(impulse) {
+      const localImpulse = impulse.clone().multiplyScalar(this.getSpeedMultiplier() * this._wheelSpeed);
+      localImpulse.applyQuaternion(this.camera.quaternion);
+      this.impulse.add(localImpulse);
+    }
+    move(vector = DIRECTIONS.forward, speed) {
+      const v = vector.clone();
+      if (speed)
+        v.multiplyScalar(speed);
+      v.applyQuaternion(this.camera.quaternion);
+      this.orbitalTarget.add(v);
+      this.gizmo.show();
+      if (!this.orbitMode) {
+        this.camera.position.add(v);
+      }
+    }
+    truckPedestal(vector) {
+      this.move(new THREE__namespace.Vector3(-vector.x, vector.y, 0), this.getSpeedMultiplier());
+    }
+    truckDolly(vector) {
+      this.move(new THREE__namespace.Vector3(-vector.x, 0, vector.y), this.getSpeedMultiplier());
+    }
+    dolly(amount) {
+      if (this.orbitMode) {
+        this.currentOrbitalDistance += amount;
+      } else {
+        this.move(new THREE__namespace.Vector3(0, 0, amount), this.getSpeedMultiplier());
+      }
+    }
+    setLocalVelocity(vector) {
+      const move = vector.clone();
+      move.setZ(-move.z);
+      move.applyQuaternion(this.camera.quaternion);
+      move.multiplyScalar(this.getSpeedMultiplier());
+      this.inputVelocity.copy(move);
+    }
+    rotate(vector) {
+      if (this.isLerping())
+        return;
+      const euler = new THREE__namespace.Euler(0, 0, 0, "YXZ");
+      euler.setFromQuaternion(this.camera.quaternion);
+      const factor = this.orbitMode ? Math.PI * this._orbitSpeed : Math.PI * this._rotateSpeed;
+      euler.y -= vector.x * factor;
+      euler.x -= vector.y * factor;
+      euler.z = 0;
+      const max = Math.PI * 0.48;
+      euler.x = Math.max(-max, Math.min(max, euler.x));
+      this.camera.quaternion.setFromEuler(euler);
+      if (!this.orbitMode) {
+        const offset = new THREE__namespace.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion).multiplyScalar(this.currentOrbitalDistance);
+        this.orbitalTarget = this.camera.position.clone().sub(offset);
+      }
+    }
+    setTarget(position) {
+      this.orbitalTarget = position;
+      this.orbitalTargetDistance = this.camera.position.distanceTo(position);
+      this.startLerp(0.4);
+    }
+    update(deltaTime) {
+      const targetVelocity = this.inputVelocity.clone();
+      const invBlendFactor = Math.pow(this._velocityBlendFactor, deltaTime);
+      const blendFactor = 1 - invBlendFactor;
+      this.velocity.multiplyScalar(invBlendFactor);
+      targetVelocity.multiplyScalar(blendFactor);
+      this.velocity.add(targetVelocity);
+      this.currentOrbitalDistance = this.currentOrbitalDistance * invBlendFactor + this.orbitalTargetDistance * blendFactor;
+      const positionDelta = this.velocity.clone().multiplyScalar(deltaTime);
+      const impulse = this.impulse.clone().multiplyScalar(blendFactor);
+      positionDelta.add(impulse);
+      const orbitDelta = positionDelta.clone();
+      if (this.orbitMode) {
+        const inv = this.camera.quaternion.clone().invert();
+        const local = positionDelta.clone().applyQuaternion(inv);
+        orbitDelta.set(local.x, local.y, 0);
+        orbitDelta.applyQuaternion(this.camera.quaternion);
+        this.currentOrbitalDistance = Math.max(this.currentOrbitalDistance + local.z, this.minOrbitalDistance * this._sceneSizeMultiplier);
+        this.orbitalTargetDistance = this.currentOrbitalDistance;
+      }
+      this.impulse.multiplyScalar(invBlendFactor);
+      this.camera.position.add(positionDelta);
+      this.orbitalTarget.add(orbitDelta);
+      if (this.orbitMode) {
+        const target = new THREE__namespace.Vector3(0, 0, this.currentOrbitalDistance);
+        target.applyQuaternion(this.camera.quaternion);
+        target.add(this.orbitalTarget);
+        if (this.isLerping()) {
+          const frames = this.lerpSecondsDuration / deltaTime;
+          const alpha = 1 - Math.pow(0.01, 1 / frames);
+          this.camera.position.lerp(target, alpha);
+          this.gizmo.show(false);
+        } else {
+          this.camera.position.copy(target);
+          if (this.isSignificant(positionDelta)) {
+            this.gizmo.show();
+          }
+        }
+      }
+      this.gizmo.setPosition(this.orbitalTarget);
+    }
+    getSpeedMultiplier() {
+      return Math.pow(1.25, this.speedMultiplier) * this._sceneSizeMultiplier * this._moveSpeed;
+    }
+    isLerping() {
+      return new Date().getTime() < this.lerpMsEndtime;
+    }
+    startLerp(seconds) {
+      this.lerpMsEndtime = new Date().getTime() + seconds * 1e3;
+      this.lerpSecondsDuration = seconds;
+    }
+    isSignificant(vector) {
+      const min = 0.01 * this._sceneSizeMultiplier / 60;
+      return Math.abs(vector.x) > min || Math.abs(vector.y) > min || Math.abs(vector.z) > min;
+    }
+  }
+  const KEYS = {
+    KEY_0: 48,
+    KEY_1: 49,
+    KEY_2: 50,
+    KEY_3: 51,
+    KEY_4: 52,
+    KEY_5: 53,
+    KEY_6: 54,
+    KEY_7: 55,
+    KEY_8: 56,
+    KEY_9: 57,
+    KEY_LEFT: 37,
+    KEY_RIGHT: 39,
+    KEY_UP: 38,
+    KEY_DOWN: 40,
+    KEY_CTRL: 17,
+    KEY_SHIFT: 16,
+    KEY_ENTER: 13,
+    KEY_SPACE: 32,
+    KEY_TAB: 9,
+    KEY_ESCAPE: 27,
+    KEY_BACKSPACE: 8,
+    KEY_HOME: 36,
+    KEY_END: 35,
+    KEY_INSERT: 45,
+    KEY_DELETE: 46,
+    KEY_ALT: 18,
+    KEY_F1: 112,
+    KEY_F2: 113,
+    KEY_F3: 114,
+    KEY_F4: 115,
+    KEY_F5: 116,
+    KEY_F6: 117,
+    KEY_F7: 118,
+    KEY_F8: 119,
+    KEY_F9: 120,
+    KEY_F10: 121,
+    KEY_F11: 122,
+    KEY_F12: 123,
+    KEY_NUMPAD0: 96,
+    KEY_NUMPAD1: 97,
+    KEY_NUMPAD2: 98,
+    KEY_NUMPAD3: 99,
+    KEY_NUMPAD4: 100,
+    KEY_NUMPAD5: 101,
+    KEY_NUMPAD6: 102,
+    KEY_NUMPAD7: 103,
+    KEY_NUMPAD8: 104,
+    KEY_NUMPAD9: 105,
+    KEY_ADD: 107,
+    KEY_SUBTRACT: 109,
+    KEY_MULTIPLY: 106,
+    KEY_DIVIDE: 111,
+    KEY_SEPARATOR: 108,
+    KEY_DECIMAL: 110,
+    KEY_OEM_PLUS: 187,
+    KEY_OEM_MINUS: 189,
+    KEY_A: 65,
+    KEY_B: 66,
+    KEY_C: 67,
+    KEY_D: 68,
+    KEY_E: 69,
+    KEY_F: 70,
+    KEY_G: 71,
+    KEY_H: 72,
+    KEY_I: 73,
+    KEY_J: 74,
+    KEY_K: 75,
+    KEY_L: 76,
+    KEY_M: 77,
+    KEY_N: 78,
+    KEY_O: 79,
+    KEY_P: 80,
+    KEY_Q: 81,
+    KEY_R: 82,
+    KEY_S: 83,
+    KEY_T: 84,
+    KEY_U: 85,
+    KEY_V: 86,
+    KEY_W: 87,
+    KEY_X: 88,
+    KEY_Y: 89,
+    KEY_Z: 90
+  };
+  class Keyboard {
+    constructor(camera, viewer) {
+      __publicField(this, "SHIFT_MULTIPLIER", 3);
+      __publicField(this, "_camera");
+      __publicField(this, "_viewer");
+      __publicField(this, "isUpPressed");
+      __publicField(this, "isDownPressed");
+      __publicField(this, "isLeftPressed");
+      __publicField(this, "isRightPressed");
+      __publicField(this, "isEPressed");
+      __publicField(this, "isQPressed");
+      __publicField(this, "isShiftPressed", false);
+      __publicField(this, "isCtrlPressed");
+      __publicField(this, "reset", () => {
+        this.isUpPressed = false;
+        this.isDownPressed = false;
+        this.isLeftPressed = false;
+        this.isRightPressed = false;
+        this.isEPressed = false;
+        this.isQPressed = false;
+        this.isShiftPressed = false;
+        this.isCtrlPressed = false;
+      });
+      __publicField(this, "onKeyUp", (event) => {
+        this.onKey(event, false);
+      });
+      __publicField(this, "onKeyDown", (event) => {
+        this.onKey(event, true);
+      });
+      __publicField(this, "onKey", (event, keyDown) => {
+        if (!keyDown) {
+          switch (event.keyCode) {
+            case KEYS.KEY_ADD:
+            case KEYS.KEY_OEM_PLUS:
+              this._camera.speedMultiplier += 1;
+              event.preventDefault();
+              break;
+            case KEYS.KEY_SUBTRACT:
+            case KEYS.KEY_OEM_MINUS:
+              this._camera.speedMultiplier -= 1;
+              event.preventDefault();
+              break;
+            case KEYS.KEY_F8:
+            case KEYS.KEY_SPACE:
+              this._camera.orbitMode = !this._camera.orbitMode;
+              event.preventDefault();
+              break;
+            case KEYS.KEY_HOME:
+              this._viewer.frameContent();
+              event.preventDefault();
+              break;
+            case KEYS.KEY_ESCAPE:
+              this._viewer.selectObject(void 0);
+              event.preventDefault();
+              break;
+            case KEYS.KEY_Z:
+            case KEYS.KEY_F:
+              this._viewer.frameSelection();
+              event.preventDefault();
+              break;
+          }
+        }
+        switch (event.keyCode) {
+          case KEYS.KEY_W:
+          case KEYS.KEY_UP:
+            this.isUpPressed = keyDown;
+            this.applyMove();
+            event.preventDefault();
+            break;
+          case KEYS.KEY_S:
+          case KEYS.KEY_DOWN:
+            this.isDownPressed = keyDown;
+            this.applyMove();
+            event.preventDefault();
+            break;
+          case KEYS.KEY_D:
+          case KEYS.KEY_RIGHT:
+            this.isRightPressed = keyDown;
+            this.applyMove();
+            event.preventDefault();
+            break;
+          case KEYS.KEY_A:
+          case KEYS.KEY_LEFT:
+            this.isLeftPressed = keyDown;
+            this.applyMove();
+            event.preventDefault();
+            break;
+          case KEYS.KEY_E:
+            this.isEPressed = keyDown;
+            this.applyMove();
+            event.preventDefault();
+            break;
+          case KEYS.KEY_Q:
+            this.isQPressed = keyDown;
+            this.applyMove();
+            event.preventDefault();
+            break;
+          case KEYS.KEY_SHIFT:
+            this.isShiftPressed = keyDown;
+            this.applyMove();
+            event.preventDefault();
+            break;
+          case KEYS.KEY_CTRL:
+            this.isCtrlPressed = keyDown;
+            console.log("Control:" + keyDown);
+            event.preventDefault();
+            break;
+        }
+      });
+      __publicField(this, "applyMove", () => {
+        const move = new THREE__namespace.Vector3((this.isRightPressed ? 1 : 0) - (this.isLeftPressed ? 1 : 0), (this.isEPressed ? 1 : 0) - (this.isQPressed ? 1 : 0), (this.isUpPressed ? 1 : 0) - (this.isDownPressed ? 1 : 0));
+        const speed = this.isShiftPressed ? this.SHIFT_MULTIPLIER : 1;
+        move.multiplyScalar(speed);
+        this._camera.setLocalVelocity(move);
+      });
+      this._camera = camera;
+      this._viewer = viewer;
+    }
+  }
+  class Touch {
+    constructor(camera, renderer, mouse) {
+      __publicField(this, "TAP_DURATION_MS", 500);
+      __publicField(this, "_camera");
+      __publicField(this, "_renderer");
+      __publicField(this, "_mouse");
+      __publicField(this, "_touchStart");
+      __publicField(this, "_touchStart1");
+      __publicField(this, "_touchStart2");
+      __publicField(this, "_touchStartTime");
+      __publicField(this, "reset", () => {
+        this._touchStart = this._touchStart1 = this._touchStart2 = this._touchStartTime = void 0;
+      });
+      __publicField(this, "onTap", (position) => {
+        this._mouse.onMouseClick(position, false);
+      });
+      __publicField(this, "onTouchStart", (event) => {
+        event.preventDefault();
+        if (!event || !event.touches || !event.touches.length) {
+          return;
+        }
+        this._touchStartTime = new Date().getTime();
+        if (event.touches.length === 1) {
+          this._touchStart = this.touchToVector(event.touches[0]);
+          this._touchStart1 = this._touchStart2 = void 0;
+        } else if (event.touches.length === 2) {
+          this._touchStart1 = this.touchToVector(event.touches[0]);
+          this._touchStart2 = this.touchToVector(event.touches[1]);
+          this._touchStart = this.average(this._touchStart1, this._touchStart2);
+        }
+      });
+      __publicField(this, "onDrag", (delta) => {
+        this._camera.rotate(delta);
+      });
+      __publicField(this, "onDoubleDrag", (delta) => {
+        this._camera.truckPedestal(delta);
+      });
+      __publicField(this, "onPinchOrSpread", (delta) => {
+        this._camera.dolly(delta);
+      });
+      __publicField(this, "onTouchMove", (event) => {
+        event.preventDefault();
+        if (!event || !event.touches || !event.touches.length)
+          return;
+        if (!this._touchStart)
+          return;
+        if (event.touches.length === 1) {
+          const pos = this.touchToVector(event.touches[0]);
+          const [width, height] = this._renderer.getContainerSize();
+          const delta = pos.clone().sub(this._touchStart).multiply(new THREE__namespace.Vector2(1 / width, 1 / height));
+          this._touchStart = pos;
+          this.onDrag(delta);
+          return;
+        }
+        if (!this._touchStart1 || !this._touchStart2)
+          return;
+        if (event.touches.length >= 2) {
+          const p1 = this.touchToVector(event.touches[0]);
+          const p2 = this.touchToVector(event.touches[1]);
+          const p = this.average(p1, p2);
+          const [width, height] = this._renderer.getContainerSize();
+          const moveDelta = this._touchStart.clone().sub(p).multiply(new THREE__namespace.Vector2(-1 / width, -1 / height));
+          const zoom = p1.distanceTo(p2);
+          const prevZoom = this._touchStart1.distanceTo(this._touchStart2);
+          const min = Math.min(width, height);
+          const zoomDelta = (zoom - prevZoom) / -min;
+          this._touchStart = p;
+          this._touchStart1 = p1;
+          this._touchStart2 = p2;
+          if (moveDelta.length() > Math.abs(zoomDelta)) {
+            this.onDoubleDrag(moveDelta);
+          } else {
+            this.onPinchOrSpread(zoomDelta);
+          }
+        }
+      });
+      __publicField(this, "onTouchEnd", (_) => {
+        if (this.isSingleTouch()) {
+          const touchDurationMs = new Date().getTime() - this._touchStartTime;
+          if (touchDurationMs < this.TAP_DURATION_MS) {
+            this.onTap(this._touchStart);
+          }
+        }
+        this.reset();
+      });
+      this._camera = camera;
+      this._renderer = renderer;
+      this._mouse = mouse;
+    }
+    isSingleTouch() {
+      return this._touchStart !== void 0 && this._touchStartTime !== void 0 && this._touchStart1 === void 0 && this._touchStart2 === void 0;
+    }
+    touchToVector(touch) {
+      return new THREE__namespace.Vector2(touch.pageX, touch.pageY);
+    }
+    average(p1, p2) {
+      return p1.clone().lerp(p2, 0.5);
+    }
+  }
+  class HitTestResult {
+    constructor(mousePosition, intersections) {
+      __publicField(this, "mousePosition");
+      __publicField(this, "doubleClick");
+      __publicField(this, "object");
+      __publicField(this, "intersections");
+      __publicField(this, "firstHit");
+      this.mousePosition = mousePosition;
+      this.intersections = intersections;
+      this.firstHit = HitTestResult.GetFirstVimHit(intersections);
+    }
+    static GetFirstVimHit(intersections) {
+      var _a, _b;
+      for (let i = 0; i < intersections.length; i++) {
+        if (((_b = (_a = intersections[i].object) == null ? void 0 : _a.userData) == null ? void 0 : _b.index) !== void 0) {
+          return intersections[i];
+        }
+      }
+    }
+    get isHit() {
+      return !!this.firstHit;
+    }
+    get distance() {
+      return this.firstHit.distance;
+    }
+    get position() {
+      return this.firstHit.point;
+    }
+    get objectId() {
+      return this.firstHit.object.id;
+    }
+    get faceIndex() {
+      return this.firstHit.faceIndex;
+    }
+  }
+  class HitTester {
+    constructor(viewer) {
+      __publicField(this, "_viewer");
+      __publicField(this, "_raycaster", new THREE__namespace.Raycaster());
+      this._viewer = viewer;
+    }
+    screenRaycast(position) {
+      console.time("raycast");
+      const intersections = this.raycast(position);
+      console.timeEnd("raycast");
+      const r = new HitTestResult(position, intersections);
+      const hit = r.firstHit;
+      if (hit) {
+        const vimIndex = hit.object.userData.index;
+        if (hit.object.userData.merged && hit.uv !== void 0) {
+          const instance = Math.round(hit.uv.x);
+          r.object = this._viewer.getVim(vimIndex).getObjectFromInstance(instance);
+        } else if (hit.instanceId !== void 0) {
+          r.object = this._viewer.getVim(vimIndex).getObjectFromMesh(hit.object, hit.instanceId);
+        }
+      }
+      return r;
+    }
+    raycast(position) {
+      const [width, height] = this._viewer.renderer.getContainerSize();
+      const x = position.x / width * 2 - 1;
+      const y = -(position.y / height) * 2 + 1;
+      this._raycaster.setFromCamera(new THREE__namespace.Vector2(x, y), this._viewer.camera.camera);
+      return this._raycaster.intersectObjects(this._viewer.renderer.scene.children);
+    }
+  }
+  class Mouse {
+    constructor(viewer, keyboard) {
+      __publicField(this, "_viewer");
+      __publicField(this, "_hitTester");
+      __publicField(this, "_inputKeyboard");
+      __publicField(this, "isMouseDown", false);
+      __publicField(this, "hasMouseMoved", false);
+      __publicField(this, "reset", () => {
+        this.isMouseDown = this.hasMouseMoved = false;
+      });
+      __publicField(this, "onMouseOut", (_) => {
+        this.isMouseDown = this.hasMouseMoved = false;
+      });
+      __publicField(this, "onMouseMove", (event) => {
+        if (!this.isMouseDown) {
+          return;
+        }
+        event.preventDefault();
+        const deltaX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+        const deltaY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+        const [width, height] = this.renderer.getContainerSize();
+        const delta = new THREE__namespace.Vector2(deltaX / width, deltaY / height);
+        this.hasMouseMoved = this.hasMouseMoved || Math.abs(deltaX) + Math.abs(deltaY) > 3;
+        if (event.buttons & 2) {
+          this.camera.truckPedestal(delta);
+        } else if (event.buttons & 4) {
+          this.camera.truckDolly(delta);
+        } else {
+          this.camera.rotate(delta);
+        }
+      });
+      __publicField(this, "onMouseWheel", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const scrollValue = Math.sign(event.deltaY);
+        if (this._inputKeyboard.isCtrlPressed) {
+          this.camera.speedMultiplier -= scrollValue;
+        } else if (this.camera.orbitMode) {
+          const impulse = new THREE__namespace.Vector3(0, 0, scrollValue);
+          this.camera.addLocalImpulse(impulse);
+        } else {
+          const impulse = new THREE__namespace.Vector3(0, 0, scrollValue);
+          this.camera.addLocalImpulse(impulse);
+        }
+      });
+      __publicField(this, "onMouseDown", (event) => {
+        event.preventDefault();
+        this.isMouseDown = true;
+        this.hasMouseMoved = false;
+        this.renderer.canvas.focus();
+      });
+      __publicField(this, "onMouseUp", (event) => {
+        if (this.isMouseDown && !this.hasMouseMoved) {
+          this.onMouseClick(new THREE__namespace.Vector2(event.offsetX, event.offsetY), false);
+        }
+        this.isMouseDown = false;
+        event.preventDefault();
+      });
+      __publicField(this, "onDoubleClick", (event) => {
+        this.onMouseClick(new THREE__namespace.Vector2(event.offsetX, event.offsetY), true);
+      });
+      __publicField(this, "onMouseClick", (position, doubleClick) => {
+        const result = this._hitTester.screenRaycast(position);
+        result.doubleClick = doubleClick;
+        this._viewer.onMouseClick(result);
+      });
+      this._viewer = viewer;
+      this._hitTester = new HitTester(viewer);
+      this._inputKeyboard = keyboard;
+    }
+    get camera() {
+      return this._viewer.camera;
+    }
+    get renderer() {
+      return this._viewer.renderer;
+    }
+  }
+  class Input {
+    constructor(viewer) {
+      __publicField(this, "_canvas");
+      __publicField(this, "_unregisters");
+      __publicField(this, "_touch");
+      __publicField(this, "_mouse");
+      __publicField(this, "_keyboard");
+      __publicField(this, "reg", (handler, type, listener) => {
+        handler.addEventListener(type, listener);
+        this._unregisters.push(() => handler.removeEventListener(type, listener));
+      });
+      __publicField(this, "unregister", () => {
+        this._unregisters.forEach((f) => f());
+        this.reset();
+      });
+      this._canvas = viewer.renderer.canvas;
+      this._unregisters = [];
+      this._keyboard = new Keyboard(viewer.camera, viewer);
+      this._mouse = new Mouse(viewer, this._keyboard);
+      this._touch = new Touch(viewer.camera, viewer.renderer, this._mouse);
+    }
+    register() {
+      this.reg(this._canvas, "mousedown", this._mouse.onMouseDown);
+      this.reg(this._canvas, "wheel", this._mouse.onMouseWheel);
+      this.reg(this._canvas, "mousemove", this._mouse.onMouseMove);
+      this.reg(this._canvas, "mouseup", this._mouse.onMouseUp);
+      this.reg(this._canvas, "mouseout", this._mouse.onMouseOut);
+      this.reg(this._canvas, "dblclick", this._mouse.onDoubleClick);
+      this.reg(this._canvas, "touchstart", this._touch.onTouchStart);
+      this.reg(this._canvas, "touchend", this._touch.onTouchEnd);
+      this.reg(this._canvas, "touchmove", this._touch.onTouchMove);
+      this.reg(document, "keydown", this._keyboard.onKeyDown);
+      this.reg(document, "keyup", this._keyboard.onKeyUp);
+      this.reg(this._canvas, "contextmenu", (e) => e.preventDefault());
+    }
+    reset() {
+      this._mouse.reset();
+      this._keyboard.reset();
+      this._touch.reset();
+    }
+  }
+  class Selection {
+    constructor(viewer) {
+      __publicField(this, "viewer");
+      __publicField(this, "object");
+      __publicField(this, "_boundingSphere");
+      __publicField(this, "_highlightDisposer");
+      this.viewer = viewer;
+    }
+    getBoundingSphere(target = new THREE__namespace.Sphere()) {
+      return target.copy(this._boundingSphere);
+    }
+    hasSelection() {
+      return this.object !== void 0;
+    }
+    clear() {
+      this.object = void 0;
+      this._boundingSphere = null;
+      this.disposeResources();
+    }
+    disposeResources() {
+      var _a;
+      (_a = this._highlightDisposer) == null ? void 0 : _a.call(this);
+      this._highlightDisposer = null;
+    }
+    select(object) {
+      this.clear();
+      this.object = object;
+      const wireframe = object.createWireframe();
+      this.viewer.renderer.addObject(wireframe);
+      this._highlightDisposer = () => this.viewer.renderer.removeObject(wireframe);
+      this._boundingSphere = object.getBoundingSphere();
+    }
+  }
+  class GroundPlane {
+    constructor() {
+      __publicField(this, "mesh");
+      __publicField(this, "_source");
+      __publicField(this, "_size");
+      __publicField(this, "_geometry");
+      __publicField(this, "_material");
+      __publicField(this, "_texture");
+      this._geometry = new THREE__namespace.PlaneBufferGeometry();
+      this._material = new THREE__namespace.MeshBasicMaterial({ transparent: true });
+      this.mesh = new THREE__namespace.Mesh(this._geometry, this._material);
+    }
+    applyViewerSettings(settings) {
+      this._size = settings.getGroundPlaneSize();
+      this.mesh.visible = settings.getGroundPlaneShow();
+      this.applyTexture(settings.getGroundPlaneTextureUrl());
+      this._material.color.copy(settings.getGroundPlaneColor());
+      this._material.opacity = settings.getGroundPlaneOpacity();
+    }
+    adaptToContent(box) {
+      var _a;
+      const center = box.getCenter(new THREE__namespace.Vector3());
+      const position = new THREE__namespace.Vector3(center.x, box.min.y - Math.abs(box.min.y) * 0.01, center.z);
+      this.mesh.position.copy(position);
+      this.mesh.quaternion.copy(new THREE__namespace.Quaternion().setFromEuler(new THREE__namespace.Euler(1.5 * Math.PI, 0, 0)));
+      const sphere = box == null ? void 0 : box.getBoundingSphere(new THREE__namespace.Sphere());
+      const size = ((_a = sphere == null ? void 0 : sphere.radius) != null ? _a : 1) * this._size;
+      const scale = new THREE__namespace.Vector3(1, 1, 1).multiplyScalar(size);
+      this.mesh.scale.copy(scale);
+    }
+    applyTexture(texUrl) {
+      var _a;
+      if (texUrl === this._source)
+        return;
+      this._source = texUrl;
+      (_a = this._texture) == null ? void 0 : _a.dispose();
+      this._texture = null;
+      if (!texUrl)
+        return;
+      const loader = new THREE__namespace.TextureLoader();
+      this._texture = loader.load(texUrl);
+      if (!this._texture) {
+        console.error("Failed to load texture: " + texUrl);
+        return;
+      }
+      this._material.map = this._texture;
+    }
+    dispose() {
+      var _a, _b, _c;
+      (_a = this._geometry) == null ? void 0 : _a.dispose();
+      (_b = this._material) == null ? void 0 : _b.dispose();
+      (_c = this._texture) == null ? void 0 : _c.dispose();
+      this._geometry = null;
+      this._material = null;
+      this._texture = null;
+    }
+  }
+  class Environment {
+    constructor(settings) {
+      __publicField(this, "groundPlane");
+      __publicField(this, "skyLight");
+      __publicField(this, "sunLight");
+      this.groundPlane = new GroundPlane();
+      this.skyLight = new THREE__namespace.HemisphereLight();
+      this.sunLight = new THREE__namespace.DirectionalLight();
+      this.applySettings(settings);
+    }
+    getObjects() {
+      return [this.groundPlane.mesh, this.skyLight, this.sunLight];
+    }
+    applySettings(settings) {
+      this.groundPlane.applyViewerSettings(settings);
+      this.skyLight.color.copy(settings.getSkylightColor());
+      this.skyLight.groundColor.copy(settings.getSkylightGroundColor());
+      this.skyLight.intensity = settings.getSkylightIntensity();
+      this.sunLight.color.copy(settings.getSunlightColor());
+      this.sunLight.position.copy(settings.getSunlightPosition());
+      this.sunLight.intensity = settings.getSunlightIntensity();
+    }
+    adaptToContent(box) {
+      this.groundPlane.adaptToContent(box);
+    }
+  }
+  class Renderer {
+    constructor(canvas, settings) {
+      __publicField(this, "camera");
+      __publicField(this, "renderer");
+      __publicField(this, "clock", new THREE__namespace.Clock());
+      __publicField(this, "canvas");
+      __publicField(this, "scene");
+      __publicField(this, "_boundingBox");
+      __publicField(this, "fitToCanvas", () => {
+        const [width, height] = this.getContainerSize();
+        this.renderer.setSize(width, height);
+        this.camera.aspect = width / height;
+        this.camera.updateProjectionMatrix();
+      });
+      this.renderer = new THREE__namespace.WebGLRenderer({
+        canvas,
+        antialias: true,
+        precision: "highp",
+        alpha: true,
+        stencil: false,
+        powerPreference: "high-performance",
+        logarithmicDepthBuffer: true
+      });
+      this.canvas = this.renderer.domElement;
+      this.renderer.setPixelRatio(window.devicePixelRatio);
+      this.renderer.shadowMap.enabled = false;
+      this.camera = new THREE__namespace.PerspectiveCamera();
+      this.scene = new THREE__namespace.Scene();
+      this.fitToCanvas();
+      this.setOnResize(this.fitToCanvas, settings.getCanvasResizeDelay());
+    }
+    setOnResize(callback, timeout) {
+      let timerId;
+      window.addEventListener("resize", function() {
+        if (timerId !== void 0) {
+          clearTimeout(timerId);
+          timerId = void 0;
+        }
+        timerId = setTimeout(function() {
+          timerId = void 0;
+          callback();
+        }, timeout);
+      });
+    }
+    getBoundingSphere(target = new THREE__namespace.Sphere()) {
+      var _a;
+      return (_a = this._boundingBox) == null ? void 0 : _a.getBoundingSphere(target);
+    }
+    getBoundingBox(target = new THREE__namespace.Box3()) {
+      return target.copy(this._boundingBox);
+    }
+    render() {
+      this.renderer.render(this.scene, this.camera);
+    }
+    getContainerSize() {
+      return [
+        this.canvas.parentElement.clientWidth,
+        this.canvas.parentElement.clientHeight
+      ];
+    }
+    addObject(mesh) {
+      this.scene.add(mesh);
+    }
+    addScene(scene) {
+      scene.meshes.forEach((m) => {
+        this.scene.add(m);
+      });
+      this._boundingBox = this._boundingBox ? this._boundingBox.union(scene.boundingBox) : scene.boundingBox.clone();
+    }
+    removeObject(mesh) {
+      this.scene.remove(mesh);
+    }
+    removeScene(scene) {
+      for (let i = 0; i < scene.meshes.length; i++) {
+        this.scene.remove(scene.meshes[i]);
+      }
+    }
+    clear() {
+      this.scene.clear();
+      this._boundingBox = void 0;
+    }
+  }
   var lodash = { exports: {} };
   /**
    * @license
@@ -5535,169 +6578,189 @@ var vim = function(exports, THREE2) {
       }
     }).call(commonjsGlobal);
   })(lodash, lodash.exports);
-  function transparencyIsValid(value) {
-    return ["all", "opaqueOnly", "transparentOnly", "allAsOpaque"].includes(value);
-  }
-  function transparencyRequiresAlpha(mode) {
-    return mode === "all" || mode === "transparentOnly";
-  }
-  function transparencyMatches(mode, transparent) {
-    return mode === "allAsOpaque" || mode === "all" || !transparent && mode === "opaqueOnly" || transparent && mode === "transparentOnly";
-  }
-  function createFromInstances(g3d, instances) {
-    const merger = MeshMerger.MergeInstances(g3d, instances, "all");
-    return merger.toBufferGeometry();
-  }
-  function createFromMesh(g3d, mesh, useAlpha) {
-    const colors = createVertexColors(g3d, mesh, useAlpha);
-    return createBufferGeometryFromArrays(g3d.positions.subarray(g3d.getMeshVertexStart(mesh) * 3, g3d.getMeshVertexEnd(mesh) * 3), g3d.indices.subarray(g3d.getMeshIndexStart(mesh), g3d.getMeshIndexEnd(mesh)), colors, useAlpha ? 4 : 3);
-  }
-  function createVertexColors(g3d, mesh, useAlpha) {
-    const result = new Float32Array(g3d.getMeshVertexCount(mesh) * (useAlpha ? 4 : 3));
-    const subStart = g3d.getMeshSubmeshStart(mesh);
-    const subEnd = g3d.getMeshSubmeshEnd(mesh);
-    for (let submesh = subStart; submesh < subEnd; submesh++) {
-      const color = g3d.getSubmeshColor(submesh);
-      const start = g3d.getSubmeshIndexStart(submesh);
-      const end = g3d.getSubmeshIndexEnd(submesh);
-      let v = 0;
-      for (let i = start; i < end; i++) {
-        result[v++] = color[0];
-        result[v++] = color[1];
-        result[v++] = color[2];
-        if (useAlpha)
-          result[v++] = color[3];
-      }
+  exports.Transparency = void 0;
+  (function(Transparency2) {
+    function isValid(value) {
+      return ["all", "opaqueOnly", "transparentOnly", "allAsOpaque"].includes(value);
     }
-    return result;
-  }
-  class MeshMerger {
-    constructor(g3d, transparency, instances, meshes, indexCount, vertexCount) {
-      __publicField(this, "g3d");
-      __publicField(this, "colorSize");
-      __publicField(this, "meshes");
-      __publicField(this, "indices");
-      __publicField(this, "vertices");
-      __publicField(this, "colors");
-      __publicField(this, "uvs");
-      __publicField(this, "instances");
-      this.g3d = g3d;
-      this.colorSize = transparencyRequiresAlpha(transparency) ? 4 : 3;
-      this.instances = instances;
-      this.meshes = meshes;
-      this.indices = new Uint32Array(indexCount);
-      this.vertices = new Float32Array(vertexCount * this.g3d.positionArity);
-      this.colors = new Float32Array(vertexCount * this.colorSize);
-      this.uvs = new Float32Array(vertexCount * 2);
+    Transparency2.isValid = isValid;
+    function requiresAlpha(mode) {
+      return mode === "all" || mode === "transparentOnly";
     }
-    static MergeUniqueMeshes(g3d, transparency) {
-      let vertexCount = 0;
-      let indexCount = 0;
-      const instances = [];
-      const meshes = [];
-      const meshCount = g3d.getMeshCount();
-      for (let mesh = 0; mesh < meshCount; mesh++) {
-        const meshInstances = g3d.meshInstances[mesh];
-        if (!meshInstances || meshInstances.length !== 1)
-          continue;
-        if (!transparencyMatches(transparency, g3d.meshTransparent[mesh])) {
-          continue;
+    Transparency2.requiresAlpha = requiresAlpha;
+    function match(mode, transparent) {
+      return mode === "allAsOpaque" || mode === "all" || !transparent && mode === "opaqueOnly" || transparent && mode === "transparentOnly";
+    }
+    Transparency2.match = match;
+  })(exports.Transparency || (exports.Transparency = {}));
+  exports.Geometry = void 0;
+  (function(Geometry2) {
+    function createGeometryFromInstances(g3d, instances) {
+      const merger = Merger.createFromInstances(g3d, instances, "all");
+      return merger.toBufferGeometry();
+    }
+    Geometry2.createGeometryFromInstances = createGeometryFromInstances;
+    function createGeometryFromMesh(g3d, mesh, useAlpha) {
+      const colors = createVertexColors(g3d, mesh, useAlpha);
+      return createGeometryFromArrays(g3d.positions.subarray(g3d.getMeshVertexStart(mesh) * 3, g3d.getMeshVertexEnd(mesh) * 3), g3d.indices.subarray(g3d.getMeshIndexStart(mesh), g3d.getMeshIndexEnd(mesh)), colors, useAlpha ? 4 : 3);
+    }
+    Geometry2.createGeometryFromMesh = createGeometryFromMesh;
+    function createVertexColors(g3d, mesh, useAlpha) {
+      const colorSize = useAlpha ? 4 : 3;
+      const result = new Float32Array(g3d.getMeshVertexCount(mesh) * colorSize);
+      const subStart = g3d.getMeshSubmeshStart(mesh);
+      const subEnd = g3d.getMeshSubmeshEnd(mesh);
+      for (let submesh = subStart; submesh < subEnd; submesh++) {
+        const color = g3d.getSubmeshColor(submesh);
+        const start = g3d.getSubmeshIndexStart(submesh);
+        const end = g3d.getSubmeshIndexEnd(submesh);
+        for (let i = start; i < end; i++) {
+          const v = g3d.indices[i] * colorSize;
+          result[v] = color[0];
+          result[v + 1] = color[1];
+          result[v + 2] = color[2];
+          if (useAlpha)
+            result[v + 3] = color[3];
         }
-        vertexCount += g3d.getMeshVertexCount(mesh);
-        indexCount += g3d.getMeshIndexCount(mesh);
-        instances.push(meshInstances[0]);
-        meshes.push(mesh);
       }
-      return new MeshMerger(g3d, transparency, instances, meshes, indexCount, vertexCount);
+      return result;
     }
-    static MergeInstances(g3d, instances, transparency) {
-      let vertexCount = 0;
-      let indexCount = 0;
-      const instancesFiltered = [];
-      const meshes = [];
-      for (let i = 0; i < instances.length; i++) {
-        const instance = instances[i];
-        const mesh = g3d.instanceMeshes[instance];
-        if (mesh < 0)
-          continue;
-        if (!transparencyMatches(transparency, g3d.meshTransparent[mesh])) {
-          continue;
-        }
-        vertexCount += g3d.getMeshVertexCount(mesh);
-        indexCount += g3d.getMeshIndexCount(mesh);
-        instancesFiltered.push(instance);
-        meshes.push(mesh);
+    class Merger {
+      constructor(g3d, transparency, instances, meshes, indexCount, vertexCount) {
+        __publicField(this, "_g3d");
+        __publicField(this, "_colorSize");
+        __publicField(this, "_meshes");
+        __publicField(this, "_indices");
+        __publicField(this, "_vertices");
+        __publicField(this, "_colors");
+        __publicField(this, "_uvs");
+        __publicField(this, "_instances");
+        __publicField(this, "_submeshes");
+        __publicField(this, "getInstances", () => this._instances);
+        __publicField(this, "getSubmeshes", () => this._submeshes);
+        this._g3d = g3d;
+        this._colorSize = exports.Transparency.requiresAlpha(transparency) ? 4 : 3;
+        this._instances = instances;
+        this._meshes = meshes;
+        this._indices = new Uint32Array(indexCount);
+        this._vertices = new Float32Array(vertexCount * this._g3d.POSITION_SIZE);
+        this._colors = new Float32Array(vertexCount * this._colorSize);
+        this._uvs = new Float32Array(vertexCount * 2);
+        this._submeshes = new Array(this._instances.length);
       }
-      return new MeshMerger(g3d, transparency, instancesFiltered, meshes, indexCount, vertexCount);
-    }
-    merge() {
-      let index = 0;
-      let vertex = 0;
-      let uv = 0;
-      let offset = 0;
-      const matrix = new THREE__namespace.Matrix4();
-      const vector = new THREE__namespace.Vector3();
-      for (let i = 0; i < this.instances.length; i++) {
-        const mesh = this.meshes[i];
-        const instance = this.instances[i];
-        const indexStart = this.g3d.getMeshIndexStart(mesh);
-        const indexEnd = this.g3d.getMeshIndexEnd(mesh);
-        for (let i2 = indexStart; i2 < indexEnd; i2++) {
-          this.indices[index++] = this.g3d.indices[i2] + offset;
+      static createFromUniqueMeshes(g3d, transparency) {
+        let vertexCount = 0;
+        let indexCount = 0;
+        const instances = [];
+        const meshes = [];
+        const meshCount = g3d.getMeshCount();
+        for (let mesh = 0; mesh < meshCount; mesh++) {
+          const meshInstances = g3d.meshInstances[mesh];
+          if (!meshInstances || meshInstances.length !== 1)
+            continue;
+          if (!exports.Transparency.match(transparency, g3d.meshTransparent[mesh])) {
+            continue;
+          }
+          vertexCount += g3d.getMeshVertexCount(mesh);
+          indexCount += g3d.getMeshIndexCount(mesh);
+          instances.push(meshInstances[0]);
+          meshes.push(mesh);
         }
-        const subStart = this.g3d.getMeshSubmeshStart(mesh);
-        const subEnd = this.g3d.getMeshSubmeshEnd(mesh);
-        for (let sub = subStart; sub < subEnd; sub++) {
-          const startIndex = this.g3d.getSubmeshIndexStart(sub);
-          const endIndex = this.g3d.getSubmeshIndexEnd(sub);
-          const subColor = this.g3d.getSubmeshColor(sub);
-          for (let i2 = startIndex; i2 < endIndex; i2++) {
-            const v = (this.g3d.indices[i2] + offset) * this.colorSize;
-            this.colors[v] = subColor[0];
-            this.colors[v + 1] = subColor[1];
-            this.colors[v + 2] = subColor[2];
-            if (this.colorSize > 3) {
-              this.colors[v + 3] = subColor[3];
+        return new Merger(g3d, transparency, instances, meshes, indexCount, vertexCount);
+      }
+      static createFromInstances(g3d, instances, transparency) {
+        let vertexCount = 0;
+        let indexCount = 0;
+        const instancesFiltered = [];
+        const meshes = [];
+        for (let i = 0; i < instances.length; i++) {
+          const instance = instances[i];
+          const mesh = g3d.instanceMeshes[instance];
+          if (mesh < 0)
+            continue;
+          if (!exports.Transparency.match(transparency, g3d.meshTransparent[mesh])) {
+            continue;
+          }
+          vertexCount += g3d.getMeshVertexCount(mesh);
+          indexCount += g3d.getMeshIndexCount(mesh);
+          instancesFiltered.push(instance);
+          meshes.push(mesh);
+        }
+        return new Merger(g3d, transparency, instancesFiltered, meshes, indexCount, vertexCount);
+      }
+      merge() {
+        let index = 0;
+        let vertex = 0;
+        let uv = 0;
+        let offset = 0;
+        const matrix = new THREE__namespace.Matrix4();
+        const vector = new THREE__namespace.Vector3();
+        for (let i = 0; i < this._instances.length; i++) {
+          const mesh = this._meshes[i];
+          const instance = this._instances[i];
+          this._submeshes[i] = index;
+          const indexStart = this._g3d.getMeshIndexStart(mesh);
+          const indexEnd = this._g3d.getMeshIndexEnd(mesh);
+          for (let i2 = indexStart; i2 < indexEnd; i2++) {
+            this._indices[index++] = this._g3d.indices[i2] + offset;
+          }
+          const subStart = this._g3d.getMeshSubmeshStart(mesh);
+          const subEnd = this._g3d.getMeshSubmeshEnd(mesh);
+          for (let sub = subStart; sub < subEnd; sub++) {
+            const startIndex = this._g3d.getSubmeshIndexStart(sub);
+            const endIndex = this._g3d.getSubmeshIndexEnd(sub);
+            const subColor = this._g3d.getSubmeshColor(sub);
+            for (let i2 = startIndex; i2 < endIndex; i2++) {
+              const v = (this._g3d.indices[i2] + offset) * this._colorSize;
+              this._colors[v] = subColor[0];
+              this._colors[v + 1] = subColor[1];
+              this._colors[v + 2] = subColor[2];
+              if (this._colorSize > 3) {
+                this._colors[v + 3] = subColor[3];
+              }
             }
           }
+          getInstanceMatrix(this._g3d, instance, matrix);
+          const vertexStart = this._g3d.getMeshVertexStart(mesh);
+          const vertexEnd = this._g3d.getMeshVertexEnd(mesh);
+          for (let p = vertexStart; p < vertexEnd; p++) {
+            vector.fromArray(this._g3d.positions, p * this._g3d.POSITION_SIZE);
+            vector.applyMatrix4(matrix);
+            vector.toArray(this._vertices, vertex);
+            vertex += this._g3d.POSITION_SIZE;
+            this._uvs[uv++] = instance;
+            this._uvs[uv++] = 1;
+          }
+          offset += vertexEnd - vertexStart;
         }
-        getInstanceMatrix(this.g3d, instance, matrix);
-        const vertexStart = this.g3d.getMeshVertexStart(mesh);
-        const vertexEnd = this.g3d.getMeshVertexEnd(mesh);
-        for (let p = vertexStart; p < vertexEnd; p++) {
-          vector.fromArray(this.g3d.positions, p * this.g3d.positionArity);
-          vector.applyMatrix4(matrix);
-          vector.toArray(this.vertices, vertex);
-          vertex += this.g3d.positionArity;
-          this.uvs[uv++] = instance;
-          this.uvs[uv++] = instance;
-        }
-        offset += vertexEnd - vertexStart;
+      }
+      toBufferGeometry() {
+        this.merge();
+        const geometry = createGeometryFromArrays(this._vertices, this._indices, this._colors, this._colorSize, this._uvs);
+        return geometry;
       }
     }
-    toBufferGeometry() {
-      this.merge();
-      const geometry = createBufferGeometryFromArrays(this.vertices, this.indices, this.colors, this.colorSize, this.uvs);
+    Geometry2.Merger = Merger;
+    function createGeometryFromArrays(vertices, indices, vertexColors = void 0, colorSize = 3, uvs = void 0) {
+      const geometry = new THREE__namespace.BufferGeometry();
+      geometry.setAttribute("position", new THREE__namespace.BufferAttribute(vertices, 3));
+      geometry.setIndex(new THREE__namespace.Uint32BufferAttribute(indices, 1));
+      if (vertexColors) {
+        geometry.setAttribute("color", new THREE__namespace.BufferAttribute(vertexColors, colorSize));
+        if (uvs) {
+          geometry.setAttribute("uv", new THREE__namespace.Float32BufferAttribute(uvs, 2));
+        }
+      }
       return geometry;
     }
-  }
-  function createBufferGeometryFromArrays(vertices, indices, vertexColors = void 0, colorSize = 3, uvs = void 0) {
-    const geometry = new THREE__namespace.BufferGeometry();
-    geometry.setAttribute("position", new THREE__namespace.BufferAttribute(vertices, 3));
-    geometry.setIndex(new THREE__namespace.Uint32BufferAttribute(indices, 1));
-    if (vertexColors) {
-      geometry.setAttribute("color", new THREE__namespace.BufferAttribute(vertexColors, colorSize));
-      if (uvs) {
-        geometry.setAttribute("uv", new THREE__namespace.Float32BufferAttribute(uvs, 2));
-      }
+    Geometry2.createGeometryFromArrays = createGeometryFromArrays;
+    function getInstanceMatrix(g3d, instance, target = new THREE__namespace.Matrix4()) {
+      const matrixAsArray = g3d.getInstanceMatrix(instance);
+      target.fromArray(matrixAsArray);
+      return target;
     }
-    return geometry;
-  }
-  function getInstanceMatrix(g3d, index, target = new THREE__namespace.Matrix4()) {
-    const matrixAsArray = g3d.getInstanceTransform(index);
-    target.fromArray(matrixAsArray);
-    return target;
-  }
+    Geometry2.getInstanceMatrix = getInstanceMatrix;
+  })(exports.Geometry || (exports.Geometry = {}));
   class VimSettings {
     constructor(options) {
       __publicField(this, "options");
@@ -5716,83 +6779,14 @@ var vim = function(exports, THREE2) {
         transparency: "all"
       };
       this.options = options ? cjs(fallback, options, void 0) : fallback;
-      this.options.transparency = transparencyIsValid(this.options.transparency) ? this.options.transparency : "all";
+      this.options.transparency = exports.Transparency.isValid(this.options.transparency) ? this.options.transparency : "all";
     }
-  }
-  class ViewerSettings {
-    constructor(options) {
-      __publicField(this, "options");
-      __publicField(this, "getCanvasResizeDelay", () => this.options.canvas.resizeDelay);
-      __publicField(this, "getCanvasId", () => this.options.canvas.id);
-      __publicField(this, "getPlaneShow", () => this.options.plane.show);
-      __publicField(this, "getPlaneColor", () => toRGBColor(this.options.plane.color));
-      __publicField(this, "getPlaneTextureUrl", () => this.options.plane.texture);
-      __publicField(this, "getPlaneOpacity", () => this.options.plane.opacity);
-      __publicField(this, "getPlaneSize", () => this.options.plane.size);
-      __publicField(this, "getSkylightColor", () => toHSLColor(this.options.skylight.skyColor));
-      __publicField(this, "getSkylightGroundColor", () => toHSLColor(this.options.skylight.groundColor));
-      __publicField(this, "getSkylightIntensity", () => this.options.skylight.intensity);
-      __publicField(this, "getSunlightColor", () => toHSLColor(this.options.sunLight.color));
-      __publicField(this, "getSunlightPosition", () => toVec(this.options.sunLight.position));
-      __publicField(this, "getSunlightIntensity", () => this.options.sunLight.intensity);
-      __publicField(this, "getCameraNear", () => this.options.camera.near);
-      __publicField(this, "getCameraFar", () => this.options.camera.far);
-      __publicField(this, "getCameraFov", () => this.options.camera.fov);
-      __publicField(this, "getCameraZoom", () => this.options.camera.zoom);
-      __publicField(this, "getCameraShowGizmo", () => this.options.camera.showGizmo);
-      __publicField(this, "getCameraIsOrbit", () => this.options.camera.controls.orbit);
-      __publicField(this, "getCameraMoveSpeed", () => this.options.camera.controls.moveSpeed);
-      __publicField(this, "getCameraRotateSpeed", () => this.options.camera.controls.rotateSpeed);
-      __publicField(this, "getCameraOrbitSpeed", () => this.options.camera.controls.orbitSpeed);
-      __publicField(this, "getCameraReferenceVimSize", () => this.options.camera.controls.vimReferenceSize);
-      const fallback = {
-        canvas: {
-          id: void 0,
-          resizeDelay: 200
-        },
-        camera: {
-          near: 0.01,
-          far: 15e3,
-          fov: 50,
-          zoom: 1,
-          controls: {
-            orbit: true,
-            vimReferenceSize: 1,
-            rotateSpeed: 1,
-            orbitSpeed: 1,
-            moveSpeed: 1
-          },
-          showGizmo: true
-        },
-        plane: {
-          show: true,
-          texture: null,
-          opacity: 1,
-          color: { r: 255, g: 255, b: 255 },
-          size: 3
-        },
-        skylight: {
-          skyColor: { h: 0.6, s: 1, l: 0.6 },
-          groundColor: { h: 0.095, s: 1, l: 0.75 },
-          intensity: 0.6
-        },
-        sunLight: {
-          position: { x: -47, y: 22, z: -45 },
-          color: { h: 0.1, s: 1, l: 0.95 },
-          intensity: 1
-        }
-      };
-      this.options = options ? cjs(fallback, options, void 0) : fallback;
-    }
-  }
-  function toRGBColor(c) {
-    return new THREE__namespace.Color(c.r / 255, c.g / 255, c.b / 255);
-  }
-  function toHSLColor(obj) {
-    return new THREE__namespace.Color().setHSL(obj.h, obj.s, obj.l);
   }
   function toVec(obj) {
     return new THREE__namespace.Vector3(obj.x, obj.y, obj.z);
+  }
+  function toQuaternion(rot) {
+    return new THREE__namespace.Quaternion().setFromEuler(toEuler(toVec(rot)));
   }
   function scalarToVec(x) {
     return new THREE__namespace.Vector3(x, x, x);
@@ -5800,1041 +6794,397 @@ var vim = function(exports, THREE2) {
   function toEuler(rot) {
     return new THREE__namespace.Euler(rot.x * Math.PI / 180, rot.y * Math.PI / 180, rot.z * Math.PI / 180);
   }
-  function toQuaternion(rot) {
-    return new THREE__namespace.Quaternion().setFromEuler(toEuler(toVec(rot)));
-  }
-  const DEG2RAD = Math.PI / 180;
-  const _lut = [];
-  for (let i = 0; i < 256; i++) {
-    _lut[i] = (i < 16 ? "0" : "") + i.toString(16);
-  }
-  class CameraGizmo {
-    constructor(camera, renderer) {
-      __publicField(this, "camera");
-      __publicField(this, "renderer");
-      __publicField(this, "scale");
-      __publicField(this, "fov");
-      __publicField(this, "box");
-      __publicField(this, "wireframe");
-      __publicField(this, "material");
-      __publicField(this, "materialAlways");
-      __publicField(this, "gizmos");
-      __publicField(this, "timeout");
-      __publicField(this, "active");
-      this.camera = camera;
-      this.renderer = renderer;
-    }
-    show(show = true) {
-      if (!this.active)
-        return;
-      if (!this.gizmos) {
-        this.createGizmo();
-      }
-      clearTimeout(this.timeout);
-      this.gizmos.visible = show;
-      if (show) {
-        this.timeout = setTimeout(() => this.gizmos.visible = false, 1e3);
+  var Materials;
+  (function(Materials2) {
+    class Library {
+      constructor(opaque, transparent, wireframe) {
+        __publicField(this, "opaque");
+        __publicField(this, "transparent");
+        __publicField(this, "wireframe");
+        this.opaque = opaque != null ? opaque : createOpaque();
+        this.transparent = transparent != null ? transparent : createTransparent();
+        this.wireframe = wireframe != null ? wireframe : createWireframe();
       }
     }
-    update(position) {
-      var _a;
-      (_a = this.gizmos) == null ? void 0 : _a.position.copy(position);
+    Materials2.Library = Library;
+    function createBase() {
+      return new THREE__namespace.MeshPhongMaterial({
+        color: 10066329,
+        vertexColors: true,
+        flatShading: true,
+        side: THREE__namespace.DoubleSide,
+        shininess: 70
+      });
     }
-    applyViewerSettings(settings) {
-      this.active = settings.getCameraShowGizmo();
-      this.fov = settings.getCameraFov();
+    Materials2.createBase = createBase;
+    function createOpaque() {
+      const mat = createBase();
+      patchMaterial(mat);
+      return mat;
     }
-    applyVimSettings(factor) {
-      this.setScale(Math.tan(DEG2RAD * this.fov / 2) * factor / 10);
+    Materials2.createOpaque = createOpaque;
+    function createTransparent() {
+      const mat = createBase();
+      mat.transparent = true;
+      patchMaterial(mat);
+      return mat;
     }
-    setScale(scale = 1) {
-      var _a;
-      (_a = this.gizmos) == null ? void 0 : _a.scale.set(scale, scale, scale);
-      this.scale = scale;
+    Materials2.createTransparent = createTransparent;
+    function patchMaterial(material) {
+      material.defines = { USE_UV: true };
+      material.onBeforeCompile = (shader) => {
+        patchShader(shader);
+        material.userData.shader = shader;
+      };
     }
-    createGizmo() {
-      this.box = new THREE2.SphereGeometry(1);
-      this.wireframe = new THREE__namespace.WireframeGeometry(this.box);
-      this.material = new THREE__namespace.LineBasicMaterial({
-        depthTest: true,
+    Materials2.patchMaterial = patchMaterial;
+    function patchShader(shader) {
+      shader.vertexShader = shader.vertexShader.replace("#include <color_pars_vertex>", `
+        #include <color_pars_vertex>
+        #ifdef USE_INSTANCING_COLOR
+        attribute float useVertexColor;
+        #endif
+        `).replace("#include <uv_vertex>", `
+        #include <uv_vertex>
+
+        #ifdef USE_INSTANCING
+          #ifdef USE_INSTANCING_COLOR
+            vUv = vec2(uv.x, useVertexColor);
+          #else
+            vUv = vec2(uv.x, 1.0);
+          #endif
+        #endif
+        `).replace("#include <color_vertex>", `
+        #include <color_vertex>
+
+        #ifdef USE_INSTANCING_COLOR
+          vColor.xyz = ((1.0f - useVertexColor) * instanceColor.xyz) + (useVertexColor * color.xyz);
+        #endif
+        `);
+      shader.fragmentShader = shader.fragmentShader.replace("#include <output_fragment>", `
+        float d = length(outgoingLight);
+        gl_FragColor = vec4(vColor.xyz * (1.0f - vUv.y) * d + outgoingLight.xyz * vUv.y , diffuseColor.a);
+      `);
+      return shader;
+    }
+    Materials2.patchShader = patchShader;
+    function createWireframe() {
+      const material = new THREE__namespace.LineBasicMaterial({
+        depthTest: false,
         opacity: 0.5,
         color: new THREE__namespace.Color(255),
         transparent: true
       });
-      this.materialAlways = new THREE__namespace.LineBasicMaterial({
-        depthTest: false,
-        opacity: 0.05,
-        color: new THREE__namespace.Color(255),
-        transparent: true
-      });
-      this.gizmos = new THREE__namespace.Group();
-      this.gizmos.add(new THREE__namespace.LineSegments(this.wireframe, this.material));
-      this.gizmos.add(new THREE__namespace.LineSegments(this.wireframe, this.materialAlways));
-      this.renderer.addObject(this.gizmos);
-      this.setScale(this.scale);
+      return material;
     }
-    dispose() {
-      this.box.dispose();
-      this.wireframe.dispose();
-      this.material.dispose();
-      this.materialAlways.dispose();
-      this.box = null;
-      this.wireframe = null;
-      this.material = null;
-      this.materialAlways = null;
-      this.renderer.removeObject(this.gizmos);
-      this.gizmos = null;
-    }
-  }
-  const direction = {
-    forward: new THREE__namespace.Vector3(0, 0, -1),
-    back: new THREE__namespace.Vector3(0, 0, 1),
-    left: new THREE__namespace.Vector3(-1, 0, 0),
-    right: new THREE__namespace.Vector3(1, 0, 0),
-    up: new THREE__namespace.Vector3(0, 1, 0),
-    down: new THREE__namespace.Vector3(0, -1, 0)
-  };
-  class ViewerCamera {
-    constructor(renderer, settings) {
-      __publicField(this, "gizmo");
-      __publicField(this, "camera");
-      __publicField(this, "MinOrbitalDistance", 0.02);
-      __publicField(this, "InputVelocity");
-      __publicField(this, "Velocity");
-      __publicField(this, "Impulse");
-      __publicField(this, "SpeedMultiplier");
-      __publicField(this, "OrbitalTarget");
-      __publicField(this, "CurrentOrbitalDistance");
-      __publicField(this, "OrbitalTargetDistance");
-      __publicField(this, "lerpSecondsDuration");
-      __publicField(this, "lerpMsEndtime");
-      __publicField(this, "_isMouseOrbit", false);
-      __publicField(this, "vimReferenceSize");
-      __publicField(this, "sceneSizeMultiplier", 1);
-      __publicField(this, "velocityBlendFactor", 1e-4);
-      __publicField(this, "moveSpeed", 0.8);
-      __publicField(this, "rotateSpeed", 1);
-      __publicField(this, "orbitSpeed", 1);
-      __publicField(this, "wheelSpeed", 0.2);
-      this.gizmo = new CameraGizmo(this, renderer);
-      this.camera = renderer.camera;
-      this.applyViewerSettings(settings);
-      this.InputVelocity = new THREE__namespace.Vector3(0, 0, 0);
-      this.Velocity = new THREE__namespace.Vector3(0, 0, 0);
-      this.Impulse = new THREE__namespace.Vector3(0, 0, 0);
-      this.SpeedMultiplier = 0;
-      this.sceneSizeMultiplier = 1;
-      this.OrbitalTarget = new THREE__namespace.Vector3(0, 0, 0);
-      this.CurrentOrbitalDistance = this.camera.position.clone().sub(this.OrbitalTarget).length();
-      this.OrbitalTargetDistance = this.CurrentOrbitalDistance;
-    }
-    get IsMouseOrbit() {
-      return this._isMouseOrbit;
-    }
-    set IsMouseOrbit(value) {
-      this._isMouseOrbit = value;
-      this.gizmo.show(value);
-    }
-    lookAt(position) {
-      this.camera.lookAt(position);
-    }
-    lookAtSphere(sphere, setY = false) {
-      if (!sphere)
-        return;
-      if (setY) {
-        this.camera.position.setY(sphere.center.y);
+    Materials2.createWireframe = createWireframe;
+    Materials2.getDefaultLibrary = () => new Library();
+  })(Materials || (Materials = {}));
+  exports.Mesh = void 0;
+  (function(Mesh2) {
+    class Builder {
+      constructor(materials = void 0) {
+        __publicField(this, "materials");
+        this.materials = materials != null ? materials : Materials.getDefaultLibrary();
       }
-      const axis = this.camera.position.clone().sub(sphere.center).normalize();
-      const fovRadian = this.camera.fov * Math.PI / 180;
-      const dist = 1.33 * sphere.radius * (1 + 2 / Math.tan(fovRadian));
-      const pos = axis.clone().multiplyScalar(dist).add(sphere.center);
-      this.camera.lookAt(sphere.center);
-      this.camera.position.copy(pos);
-      this.OrbitalTarget = sphere.center;
-      this.CurrentOrbitalDistance = this.OrbitalTarget.clone().sub(pos).length();
-      this.OrbitalTargetDistance = this.CurrentOrbitalDistance;
-    }
-    reset() {
-      this.camera.position.set(0, 0, -5);
-      this.camera.lookAt(0, 0, 1);
-      this.InputVelocity.set(0, 0, 0);
-      this.Velocity.set(0, 0, 0);
-      this.Impulse.set(0, 0, 0);
-      this.CurrentOrbitalDistance = 5;
-      this.OrbitalTarget.set(0, 0, 0);
-      this.OrbitalTargetDistance = this.CurrentOrbitalDistance;
-    }
-    frameScene(sphere) {
-      if (!sphere) {
-        this.reset();
-        return;
-      }
-      this.camera.position.copy(sphere.center.clone().add(new THREE__namespace.Vector3(0, sphere.radius, -2 * sphere.radius)));
-      this.camera.lookAt(sphere.center);
-      this.OrbitalTarget = sphere.center;
-      this.CurrentOrbitalDistance = this.OrbitalTarget.clone().sub(this.camera.position).length();
-      this.OrbitalTargetDistance = this.CurrentOrbitalDistance;
-    }
-    applyViewerSettings(settings) {
-      this.IsMouseOrbit = settings.getCameraIsOrbit();
-      this.camera.fov = settings.getCameraFov();
-      this.camera.zoom = settings.getCameraZoom();
-      this.camera.near = settings.getCameraNear();
-      this.camera.far = settings.getCameraFar();
-      this.camera.updateProjectionMatrix();
-      this.moveSpeed = settings.getCameraMoveSpeed();
-      this.rotateSpeed = settings.getCameraRotateSpeed();
-      this.orbitSpeed = settings.getCameraOrbitSpeed();
-      this.gizmo.applyViewerSettings(settings);
-      this.vimReferenceSize = settings.getCameraReferenceVimSize();
-    }
-    applyVimSettings(boundingSphere) {
-      this.sceneSizeMultiplier = boundingSphere.radius / this.vimReferenceSize;
-      this.gizmo.applyVimSettings(this.sceneSizeMultiplier);
-      this.gizmo.show(this.IsMouseOrbit);
-    }
-    applyLocalImpulse(impulse) {
-      const localImpulse = impulse.clone().multiplyScalar(this.getSpeedMultiplier() * this.wheelSpeed);
-      localImpulse.applyQuaternion(this.camera.quaternion);
-      this.Impulse.add(localImpulse);
-    }
-    moveCameraBy(dir = direction.forward, speed) {
-      const vector = dir.clone();
-      if (speed)
-        vector.multiplyScalar(speed);
-      vector.applyQuaternion(this.camera.quaternion);
-      this.OrbitalTarget.add(vector);
-      this.gizmo.show();
-      if (!this._isMouseOrbit) {
-        this.camera.position.add(vector);
-      }
-    }
-    truckPedestalCameraBy(pt) {
-      this.moveCameraBy(new THREE__namespace.Vector3(-pt.x, pt.y, 0), this.getSpeedMultiplier());
-    }
-    truckDollyCameraBy(pt) {
-      this.moveCameraBy(new THREE__namespace.Vector3(-pt.x, 0, pt.y), this.getSpeedMultiplier());
-    }
-    dollyCameraBy(amount) {
-      if (this._isMouseOrbit) {
-        this.CurrentOrbitalDistance += amount;
-      } else {
-        this.moveCameraBy(new THREE__namespace.Vector3(0, 0, amount), this.getSpeedMultiplier());
-      }
-    }
-    setCameraLocalVelocity(vector) {
-      const move = vector.clone();
-      move.setZ(-move.z);
-      move.applyQuaternion(this.camera.quaternion);
-      move.multiplyScalar(this.getSpeedMultiplier());
-      this.InputVelocity.copy(move);
-    }
-    rotateCameraBy(delta) {
-      if (this.isLerping())
-        return;
-      const euler = new THREE__namespace.Euler(0, 0, 0, "YXZ");
-      euler.setFromQuaternion(this.camera.quaternion);
-      const factor = this._isMouseOrbit ? Math.PI * this.orbitSpeed : Math.PI * this.rotateSpeed;
-      euler.y -= delta.x * factor;
-      euler.x -= delta.y * factor;
-      euler.z = 0;
-      const max = Math.PI * 0.48;
-      euler.x = Math.max(-max, Math.min(max, euler.x));
-      this.camera.quaternion.setFromEuler(euler);
-      if (!this._isMouseOrbit) {
-        const offset = new THREE__namespace.Vector3(0, 0, 1).applyQuaternion(this.camera.quaternion).multiplyScalar(this.CurrentOrbitalDistance);
-        this.OrbitalTarget = this.camera.position.clone().sub(offset);
-      }
-    }
-    isLerping() {
-      return new Date().getTime() < this.lerpMsEndtime;
-    }
-    startLerp(seconds) {
-      this.lerpMsEndtime = new Date().getTime() + seconds * 1e3;
-      this.lerpSecondsDuration = seconds;
-    }
-    setTarget(position) {
-      this.OrbitalTarget = position;
-      this.OrbitalTargetDistance = this.camera.position.distanceTo(position);
-      this.startLerp(0.4);
-    }
-    getSpeedMultiplier() {
-      return Math.pow(1.25, this.SpeedMultiplier) * this.sceneSizeMultiplier * this.moveSpeed;
-    }
-    updateOrbitalDistance(diff) {
-      this.OrbitalTargetDistance -= diff * this.getSpeedMultiplier();
-      this.OrbitalTargetDistance = Math.max(this.OrbitalTargetDistance, this.MinOrbitalDistance);
-    }
-    frameUpdate(deltaTime) {
-      const targetVelocity = this.InputVelocity.clone();
-      const invBlendFactor = Math.pow(this.velocityBlendFactor, deltaTime);
-      const blendFactor = 1 - invBlendFactor;
-      this.Velocity.multiplyScalar(invBlendFactor);
-      targetVelocity.multiplyScalar(blendFactor);
-      this.Velocity.add(targetVelocity);
-      this.CurrentOrbitalDistance = this.CurrentOrbitalDistance * invBlendFactor + this.OrbitalTargetDistance * blendFactor;
-      const positionDelta = this.Velocity.clone().multiplyScalar(deltaTime);
-      const impulse = this.Impulse.clone().multiplyScalar(blendFactor);
-      positionDelta.add(impulse);
-      const orbitDelta = positionDelta.clone();
-      if (this._isMouseOrbit) {
-        const inv = this.camera.quaternion.clone().invert();
-        const local = positionDelta.clone().applyQuaternion(inv);
-        orbitDelta.set(local.x, local.y, 0);
-        orbitDelta.applyQuaternion(this.camera.quaternion);
-        this.CurrentOrbitalDistance = Math.max(this.CurrentOrbitalDistance + local.z, this.MinOrbitalDistance * this.sceneSizeMultiplier);
-        this.OrbitalTargetDistance = this.CurrentOrbitalDistance;
-      }
-      this.Impulse.multiplyScalar(invBlendFactor);
-      this.camera.position.add(positionDelta);
-      this.OrbitalTarget.add(orbitDelta);
-      if (this._isMouseOrbit) {
-        const target = new THREE__namespace.Vector3(0, 0, this.CurrentOrbitalDistance);
-        target.applyQuaternion(this.camera.quaternion);
-        target.add(this.OrbitalTarget);
-        if (this.isLerping()) {
-          const frames = this.lerpSecondsDuration / deltaTime;
-          const alpha = 1 - Math.pow(0.01, 1 / frames);
-          this.camera.position.lerp(target, alpha);
-          this.gizmo.show(false);
-        } else {
-          this.camera.position.copy(target);
-          if (this.isSignificant(positionDelta)) {
-            this.gizmo.show();
+      createInstancedMeshes(g3d, transparency, instances) {
+        const result = [];
+        const set = instances ? new Set(instances) : void 0;
+        for (let mesh = 0; mesh < g3d.getMeshCount(); mesh++) {
+          let meshInstances = g3d.meshInstances[mesh];
+          if (!meshInstances)
+            continue;
+          meshInstances = set ? meshInstances.filter((i) => set.has(i)) : meshInstances;
+          if (meshInstances.length <= 1)
+            continue;
+          if (!exports.Transparency.match(transparency, g3d.meshTransparent[mesh])) {
+            continue;
           }
+          const useAlpha = exports.Transparency.requiresAlpha(transparency) && g3d.meshTransparent[mesh];
+          const geometry = exports.Geometry.createGeometryFromMesh(g3d, mesh, useAlpha);
+          const resultMesh = this.createInstancedMesh(geometry, g3d, meshInstances, useAlpha);
+          result.push(resultMesh);
         }
+        return result;
       }
-      this.gizmo.update(this.OrbitalTarget);
-    }
-    isSignificant(vector) {
-      const min = 0.01 * this.sceneSizeMultiplier / 60;
-      return Math.abs(vector.x) > min || Math.abs(vector.y) > min || Math.abs(vector.z) > min;
-    }
-  }
-  const KEYS = {
-    KEY_0: 48,
-    KEY_1: 49,
-    KEY_2: 50,
-    KEY_3: 51,
-    KEY_4: 52,
-    KEY_5: 53,
-    KEY_6: 54,
-    KEY_7: 55,
-    KEY_8: 56,
-    KEY_9: 57,
-    KEY_LEFT: 37,
-    KEY_RIGHT: 39,
-    KEY_UP: 38,
-    KEY_DOWN: 40,
-    KEY_CTRL: 17,
-    KEY_SHIFT: 16,
-    KEY_ENTER: 13,
-    KEY_SPACE: 32,
-    KEY_TAB: 9,
-    KEY_ESCAPE: 27,
-    KEY_BACKSPACE: 8,
-    KEY_HOME: 36,
-    KEY_END: 35,
-    KEY_INSERT: 45,
-    KEY_DELETE: 46,
-    KEY_ALT: 18,
-    KEY_F1: 112,
-    KEY_F2: 113,
-    KEY_F3: 114,
-    KEY_F4: 115,
-    KEY_F5: 116,
-    KEY_F6: 117,
-    KEY_F7: 118,
-    KEY_F8: 119,
-    KEY_F9: 120,
-    KEY_F10: 121,
-    KEY_F11: 122,
-    KEY_F12: 123,
-    KEY_NUMPAD0: 96,
-    KEY_NUMPAD1: 97,
-    KEY_NUMPAD2: 98,
-    KEY_NUMPAD3: 99,
-    KEY_NUMPAD4: 100,
-    KEY_NUMPAD5: 101,
-    KEY_NUMPAD6: 102,
-    KEY_NUMPAD7: 103,
-    KEY_NUMPAD8: 104,
-    KEY_NUMPAD9: 105,
-    KEY_ADD: 107,
-    KEY_SUBTRACT: 109,
-    KEY_MULTIPLY: 106,
-    KEY_DIVIDE: 111,
-    KEY_SEPARATOR: 108,
-    KEY_DECIMAL: 110,
-    KEY_OEM_PLUS: 187,
-    KEY_OEM_MINUS: 189,
-    KEY_A: 65,
-    KEY_B: 66,
-    KEY_C: 67,
-    KEY_D: 68,
-    KEY_E: 69,
-    KEY_F: 70,
-    KEY_G: 71,
-    KEY_H: 72,
-    KEY_I: 73,
-    KEY_J: 74,
-    KEY_K: 75,
-    KEY_L: 76,
-    KEY_M: 77,
-    KEY_N: 78,
-    KEY_O: 79,
-    KEY_P: 80,
-    KEY_Q: 81,
-    KEY_R: 82,
-    KEY_S: 83,
-    KEY_T: 84,
-    KEY_U: 85,
-    KEY_V: 86,
-    KEY_W: 87,
-    KEY_X: 88,
-    KEY_Y: 89,
-    KEY_Z: 90
-  };
-  class InputKeyboard {
-    constructor(camera, viewer) {
-      __publicField(this, "ShiftMultiplier", 3);
-      __publicField(this, "camera");
-      __publicField(this, "viewer");
-      __publicField(this, "gizmo");
-      __publicField(this, "isUpPressed");
-      __publicField(this, "isDownPressed");
-      __publicField(this, "isLeftPressed");
-      __publicField(this, "isRightPressed");
-      __publicField(this, "isEPressed");
-      __publicField(this, "isQPressed");
-      __publicField(this, "isShiftPressed", false);
-      __publicField(this, "isCtrlPressed");
-      __publicField(this, "reset", () => {
-        this.isUpPressed = false;
-        this.isDownPressed = false;
-        this.isLeftPressed = false;
-        this.isRightPressed = false;
-        this.isEPressed = false;
-        this.isQPressed = false;
-        this.isShiftPressed = false;
-        this.isCtrlPressed = false;
-      });
-      __publicField(this, "onKeyUp", (event) => {
-        this.onKey(event, false);
-      });
-      __publicField(this, "onKeyDown", (event) => {
-        this.onKey(event, true);
-      });
-      __publicField(this, "onKey", (event, keyDown) => {
-        if (!keyDown) {
-          switch (event.keyCode) {
-            case KEYS.KEY_ADD:
-            case KEYS.KEY_OEM_PLUS:
-              this.camera.SpeedMultiplier += 1;
-              event.preventDefault();
-              break;
-            case KEYS.KEY_SUBTRACT:
-            case KEYS.KEY_OEM_MINUS:
-              this.camera.SpeedMultiplier -= 1;
-              event.preventDefault();
-              break;
-            case KEYS.KEY_F8:
-            case KEYS.KEY_SPACE:
-              this.camera.IsMouseOrbit = !this.camera.IsMouseOrbit;
-              event.preventDefault();
-              break;
-            case KEYS.KEY_HOME:
-              this.viewer.lookAtScene();
-              event.preventDefault();
-              break;
-            case KEYS.KEY_ESCAPE:
-              this.viewer.clearSelection();
-              event.preventDefault();
-              break;
-            case KEYS.KEY_Z:
-            case KEYS.KEY_F:
-              this.viewer.lookAtSelection();
-              event.preventDefault();
-              break;
-          }
+      createInstancedMesh(geometry, g3d, instances, useAlpha) {
+        const material = useAlpha ? this.materials.transparent : this.materials.opaque;
+        const result = new THREE__namespace.InstancedMesh(geometry, material, instances.length);
+        for (let i = 0; i < instances.length; i++) {
+          const matrix = exports.Geometry.getInstanceMatrix(g3d, instances[i]);
+          result.setMatrixAt(i, matrix);
         }
-        switch (event.keyCode) {
-          case KEYS.KEY_W:
-          case KEYS.KEY_UP:
-            this.isUpPressed = keyDown;
-            this.applyMove();
-            event.preventDefault();
-            break;
-          case KEYS.KEY_S:
-          case KEYS.KEY_DOWN:
-            this.isDownPressed = keyDown;
-            this.applyMove();
-            event.preventDefault();
-            break;
-          case KEYS.KEY_D:
-          case KEYS.KEY_RIGHT:
-            this.isRightPressed = keyDown;
-            this.applyMove();
-            event.preventDefault();
-            break;
-          case KEYS.KEY_A:
-          case KEYS.KEY_LEFT:
-            this.isLeftPressed = keyDown;
-            this.applyMove();
-            event.preventDefault();
-            break;
-          case KEYS.KEY_E:
-            this.isEPressed = keyDown;
-            this.applyMove();
-            event.preventDefault();
-            break;
-          case KEYS.KEY_Q:
-            this.isQPressed = keyDown;
-            this.applyMove();
-            event.preventDefault();
-            break;
-          case KEYS.KEY_SHIFT:
-            this.isShiftPressed = keyDown;
-            this.applyMove();
-            event.preventDefault();
-            break;
-          case KEYS.KEY_CTRL:
-            this.isCtrlPressed = keyDown;
-            console.log("Control:" + keyDown);
-            event.preventDefault();
-            break;
-        }
-      });
-      __publicField(this, "applyMove", () => {
-        const move = new THREE__namespace.Vector3((this.isRightPressed ? 1 : 0) - (this.isLeftPressed ? 1 : 0), (this.isEPressed ? 1 : 0) - (this.isQPressed ? 1 : 0), (this.isUpPressed ? 1 : 0) - (this.isDownPressed ? 1 : 0));
-        const speed = this.isShiftPressed ? this.ShiftMultiplier : 1;
-        move.multiplyScalar(speed);
-        this.camera.setCameraLocalVelocity(move);
-      });
-      this.camera = camera;
-      this.viewer = viewer;
-    }
-  }
-  class InputTouch {
-    constructor(camera, renderer, mouse) {
-      __publicField(this, "TapDurationMs", 500);
-      __publicField(this, "camera");
-      __publicField(this, "renderer");
-      __publicField(this, "mouse");
-      __publicField(this, "touchStart");
-      __publicField(this, "touchStart1");
-      __publicField(this, "touchStart2");
-      __publicField(this, "touchStartTime");
-      __publicField(this, "reset", () => {
-        this.touchStart = this.touchStart1 = this.touchStart2 = this.touchStartTime = void 0;
-      });
-      __publicField(this, "onTap", (position) => {
-        this.mouse.onMouseClick(position, false);
-      });
-      __publicField(this, "onTouchStart", (event) => {
-        event.preventDefault();
-        if (!event || !event.touches || !event.touches.length) {
-          return;
-        }
-        this.touchStartTime = new Date().getTime();
-        if (event.touches.length === 1) {
-          this.touchStart = this.touchToVector(event.touches[0]);
-          this.touchStart1 = this.touchStart2 = void 0;
-        } else if (event.touches.length === 2) {
-          this.touchStart1 = this.touchToVector(event.touches[0]);
-          this.touchStart2 = this.touchToVector(event.touches[1]);
-          this.touchStart = this.average(this.touchStart1, this.touchStart2);
-        }
-      });
-      __publicField(this, "onDrag", (delta) => {
-        this.camera.rotateCameraBy(delta);
-      });
-      __publicField(this, "onDoubleDrag", (delta) => {
-        this.camera.truckPedestalCameraBy(delta);
-      });
-      __publicField(this, "onPinchOrSpread", (delta) => {
-        this.camera.dollyCameraBy(delta);
-      });
-      __publicField(this, "onTouchMove", (event) => {
-        event.preventDefault();
-        if (!event || !event.touches || !event.touches.length)
-          return;
-        if (!this.touchStart)
-          return;
-        if (event.touches.length === 1) {
-          const pos = this.touchToVector(event.touches[0]);
-          const [width, height] = this.renderer.getContainerSize();
-          const delta = pos.clone().sub(this.touchStart).multiply(new THREE__namespace.Vector2(1 / width, 1 / height));
-          this.touchStart = pos;
-          this.onDrag(delta);
-          return;
-        }
-        if (!this.touchStart1 || !this.touchStart2)
-          return;
-        if (event.touches.length >= 2) {
-          const p1 = this.touchToVector(event.touches[0]);
-          const p2 = this.touchToVector(event.touches[1]);
-          const p = this.average(p1, p2);
-          const [width, height] = this.renderer.getContainerSize();
-          const moveDelta = this.touchStart.clone().sub(p).multiply(new THREE__namespace.Vector2(-1 / width, -1 / height));
-          const zoom = p1.distanceTo(p2);
-          const prevZoom = this.touchStart1.distanceTo(this.touchStart2);
-          const min = Math.min(width, height);
-          const zoomDelta = (zoom - prevZoom) / -min;
-          this.touchStart = p;
-          this.touchStart1 = p1;
-          this.touchStart2 = p2;
-          if (moveDelta.length() > Math.abs(zoomDelta)) {
-            this.onDoubleDrag(moveDelta);
-          } else {
-            this.onPinchOrSpread(zoomDelta);
-          }
-        }
-      });
-      __publicField(this, "onTouchEnd", (_) => {
-        if (this.isSingleTouch()) {
-          const touchDurationMs = new Date().getTime() - this.touchStartTime;
-          if (touchDurationMs < this.TapDurationMs) {
-            this.onTap(this.touchStart);
-          }
-        }
-        this.reset();
-      });
-      this.camera = camera;
-      this.renderer = renderer;
-      this.mouse = mouse;
-    }
-    isSingleTouch() {
-      return this.touchStart !== void 0 && this.touchStartTime !== void 0 && this.touchStart1 === void 0 && this.touchStart2 === void 0;
-    }
-    touchToVector(touch) {
-      return new THREE__namespace.Vector2(touch.pageX, touch.pageY);
-    }
-    average(p1, p2) {
-      return p1.clone().lerp(p2, 0.5);
-    }
-  }
-  class HitTestResult {
-    constructor() {
-      __publicField(this, "mousePosition");
-      __publicField(this, "doubleClick");
-      __publicField(this, "nodeIndex", -1);
-      __publicField(this, "instanceId", -1);
-      __publicField(this, "intersections");
-      __publicField(this, "isMerged");
-      __publicField(this, "isInstanced");
-      __publicField(this, "elementIndex", -1);
-    }
-    get firstHit() {
-      return this.intersections[0];
-    }
-    get isHit() {
-      return !!this.firstHit;
-    }
-    get distance() {
-      return this.firstHit.distance;
-    }
-    get position() {
-      return this.firstHit.point;
-    }
-    get objectId() {
-      return this.firstHit.object.id;
-    }
-    get hitFace() {
-      return this.firstHit.faceIndex;
-    }
-  }
-  class HitTester {
-    constructor(viewer) {
-      __publicField(this, "viewer");
-      __publicField(this, "raycaster", new THREE__namespace.Raycaster());
-      this.viewer = viewer;
-    }
-    onMouseClick(position, double) {
-      const r = new HitTestResult();
-      r.mousePosition = position;
-      r.doubleClick = double;
-      console.time("raycast");
-      r.intersections = this.mouseRaycast(position);
-      console.timeEnd("raycast");
-      const hit = r.firstHit;
-      if (hit) {
-        if (hit.object.userData.merged && hit.uv !== void 0) {
-          r.isMerged = true;
-          r.nodeIndex = Math.round(hit.uv.x);
-          r.elementIndex = this.viewer.getElementIndexFromNodeIndex(r.nodeIndex);
-        } else if (hit.instanceId !== void 0) {
-          r.isInstanced = true;
-          r.instanceId = hit.instanceId;
-          r.elementIndex = this.viewer.getElementIndexFromMeshInstance(hit.object, r.instanceId);
-        }
+        result.userData.instances = instances;
+        return result;
       }
-      return r;
-    }
-    mouseRaycast(position) {
-      const [width, height] = this.viewer.renderer.getContainerSize();
-      const x = position.x / width * 2 - 1;
-      const y = -(position.y / height) * 2 + 1;
-      this.raycaster.setFromCamera(new THREE__namespace.Vector2(x, y), this.viewer.camera.camera);
-      return this.raycaster.intersectObjects(this.viewer.renderer.meshes);
-    }
-  }
-  class InputMouse {
-    constructor(viewer, keyboard) {
-      __publicField(this, "viewer");
-      __publicField(this, "hitTester");
-      __publicField(this, "inputKeyboard");
-      __publicField(this, "isMouseDown", false);
-      __publicField(this, "hasMouseMoved", false);
-      __publicField(this, "reset", () => {
-        this.isMouseDown = this.hasMouseMoved = false;
-      });
-      __publicField(this, "onMouseOut", (_) => {
-        this.isMouseDown = this.hasMouseMoved = false;
-      });
-      __publicField(this, "onMouseMove", (event) => {
-        if (!this.isMouseDown) {
-          return;
-        }
-        event.preventDefault();
-        const deltaX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-        const deltaY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
-        const [width, height] = this.renderer.getContainerSize();
-        const delta = new THREE__namespace.Vector2(deltaX / width, deltaY / height);
-        this.hasMouseMoved = this.hasMouseMoved || Math.abs(deltaX) + Math.abs(deltaY) > 3;
-        if (event.buttons & 2) {
-          this.camera.truckPedestalCameraBy(delta);
-        } else if (event.buttons & 4) {
-          this.camera.truckDollyCameraBy(delta);
-        } else {
-          this.camera.rotateCameraBy(delta);
-        }
-      });
-      __publicField(this, "onMouseWheel", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        const scrollValue = Math.sign(event.deltaY);
-        if (this.inputKeyboard.isCtrlPressed) {
-          this.camera.SpeedMultiplier -= scrollValue;
-        } else if (this.camera.IsMouseOrbit) {
-          const impulse = new THREE__namespace.Vector3(0, 0, scrollValue);
-          this.camera.applyLocalImpulse(impulse);
-        } else {
-          const impulse = new THREE__namespace.Vector3(0, 0, scrollValue);
-          this.camera.applyLocalImpulse(impulse);
-        }
-      });
-      __publicField(this, "onMouseDown", (event) => {
-        event.preventDefault();
-        this.isMouseDown = true;
-        this.hasMouseMoved = false;
-        this.renderer.canvas.focus();
-      });
-      __publicField(this, "onMouseUp", (event) => {
-        if (this.isMouseDown && !this.hasMouseMoved) {
-          this.onMouseClick(new THREE__namespace.Vector2(event.offsetX, event.offsetY), false);
-        }
-        this.isMouseDown = false;
-        event.preventDefault();
-      });
-      __publicField(this, "onDoubleClick", (event) => {
-        this.onMouseClick(new THREE__namespace.Vector2(event.offsetX, event.offsetY), true);
-      });
-      __publicField(this, "onMouseClick", (position, doubleClick) => {
-        const result = this.hitTester.onMouseClick(position, doubleClick);
-        this.viewer.onMouseClick(result);
-      });
-      this.viewer = viewer;
-      this.hitTester = new HitTester(viewer);
-      this.inputKeyboard = keyboard;
-    }
-    get camera() {
-      return this.viewer.camera;
-    }
-    get renderer() {
-      return this.viewer.renderer;
-    }
-  }
-  class ViewerInput {
-    constructor(viewer) {
-      __publicField(this, "canvas");
-      __publicField(this, "unregisters");
-      __publicField(this, "touch");
-      __publicField(this, "mouse");
-      __publicField(this, "keyboard");
-      __publicField(this, "reg", (handler, type, listener) => {
-        handler.addEventListener(type, listener);
-        this.unregisters.push(() => handler.removeEventListener(type, listener));
-      });
-      __publicField(this, "unregister", () => {
-        this.unregisters.forEach((f) => f());
-        this.reset();
-      });
-      this.canvas = viewer.renderer.canvas;
-      this.unregisters = [];
-      this.keyboard = new InputKeyboard(viewer.camera, viewer);
-      this.mouse = new InputMouse(viewer, this.keyboard);
-      this.touch = new InputTouch(viewer.camera, viewer.renderer, this.mouse);
-    }
-    register() {
-      this.reg(this.canvas, "mousedown", this.mouse.onMouseDown);
-      this.reg(this.canvas, "wheel", this.mouse.onMouseWheel);
-      this.reg(this.canvas, "mousemove", this.mouse.onMouseMove);
-      this.reg(this.canvas, "mouseup", this.mouse.onMouseUp);
-      this.reg(this.canvas, "mouseout", this.mouse.onMouseOut);
-      this.reg(this.canvas, "dblclick", this.mouse.onDoubleClick);
-      this.reg(this.canvas, "touchstart", this.touch.onTouchStart);
-      this.reg(this.canvas, "touchend", this.touch.onTouchEnd);
-      this.reg(this.canvas, "touchmove", this.touch.onTouchMove);
-      this.reg(document, "keydown", this.keyboard.onKeyDown);
-      this.reg(document, "keyup", this.keyboard.onKeyUp);
-      this.reg(this.canvas, "contextmenu", (e) => e.preventDefault());
-    }
-    reset() {
-      this.mouse.reset();
-      this.keyboard.reset();
-      this.touch.reset();
-    }
-  }
-  class Selection {
-    constructor(viewer) {
-      __publicField(this, "viewer");
-      __publicField(this, "elementIndex", -1);
-      __publicField(this, "boundingSphere", null);
-      __publicField(this, "highlightDisposer", null);
-      this.viewer = viewer;
-    }
-    hasSelection() {
-      return this.elementIndex >= 0;
-    }
-    clear() {
-      this.elementIndex = -1;
-      this.boundingSphere = null;
-      this.disposeResources();
-    }
-    disposeResources() {
-      var _a;
-      (_a = this.highlightDisposer) == null ? void 0 : _a.call(this);
-      this.highlightDisposer = null;
-    }
-    select(elementIndex) {
-      var _a, _b;
-      this.clear();
-      if (elementIndex < 0) {
-        return;
+      createMergedMesh(g3d, transparency, instances) {
+        const merger = instances ? exports.Geometry.Merger.createFromInstances(g3d, instances, transparency) : exports.Geometry.Merger.createFromUniqueMeshes(g3d, transparency);
+        const geometry = merger.toBufferGeometry();
+        const material = exports.Transparency.requiresAlpha(transparency) ? this.materials.transparent : this.materials.opaque;
+        const mesh = new THREE__namespace.Mesh(geometry, material);
+        mesh.userData.merged = true;
+        mesh.userData.instances = merger.getInstances();
+        mesh.userData.submeshes = merger.getSubmeshes();
+        return mesh;
       }
-      this.elementIndex = elementIndex;
-      this.highlightDisposer = this.viewer.highlightElementByIndex(elementIndex);
-      this.boundingSphere = (_b = (_a = this.viewer.getBoundingBoxForElementIndex(elementIndex)) == null ? void 0 : _a.getBoundingSphere(new THREE__namespace.Sphere())) != null ? _b : null;
-    }
-  }
-  class EnvironmentPlane {
-    constructor() {
-      __publicField(this, "source");
-      __publicField(this, "mesh");
-      __publicField(this, "size");
-      __publicField(this, "geometry");
-      __publicField(this, "material");
-      __publicField(this, "texture");
-      this.geometry = new THREE__namespace.PlaneBufferGeometry();
-      this.material = new THREE__namespace.MeshBasicMaterial({ transparent: true });
-      this.mesh = new THREE__namespace.Mesh(this.geometry, this.material);
-    }
-    applyViewerSettings(settings) {
-      this.size = settings.getPlaneSize();
-      this.mesh.visible = settings.getPlaneShow();
-      this.applyTexture(settings.getPlaneTextureUrl());
-      this.material.color.copy(settings.getPlaneColor());
-      this.material.opacity = settings.getPlaneOpacity();
-    }
-    applyVimSettings(settings, box) {
-      var _a;
-      const center = box.getCenter(new THREE__namespace.Vector3());
-      const position = new THREE__namespace.Vector3(center.x, box.min.y - settings.getScale().y, center.z);
-      this.mesh.position.copy(position);
-      this.mesh.quaternion.copy(new THREE__namespace.Quaternion().setFromEuler(new THREE__namespace.Euler(1.5 * Math.PI, 0, 0)));
-      const sphere = box == null ? void 0 : box.getBoundingSphere(new THREE__namespace.Sphere());
-      const size = ((_a = sphere == null ? void 0 : sphere.radius) != null ? _a : 1) * this.size;
-      const scale = new THREE__namespace.Vector3(1, 1, 1).multiplyScalar(size);
-      this.mesh.scale.copy(scale);
-    }
-    applyTexture(texUrl) {
-      var _a;
-      if (texUrl === this.source)
-        return;
-      this.source = texUrl;
-      (_a = this.texture) == null ? void 0 : _a.dispose();
-      this.texture = null;
-      if (!texUrl)
-        return;
-      const loader = new THREE__namespace.TextureLoader();
-      this.texture = loader.load(texUrl);
-      if (!this.texture) {
-        console.error("Failed to load texture: " + texUrl);
-        return;
+      createWireframe(g3d, instances) {
+        const geometry = exports.Geometry.createGeometryFromInstances(g3d, instances);
+        const wireframe = new THREE__namespace.WireframeGeometry(geometry);
+        return new THREE__namespace.LineSegments(wireframe, this.materials.wireframe);
       }
-      this.material.map = this.texture;
     }
-    dispose() {
-      var _a, _b, _c;
-      (_a = this.geometry) == null ? void 0 : _a.dispose();
-      (_b = this.material) == null ? void 0 : _b.dispose();
-      (_c = this.texture) == null ? void 0 : _c.dispose();
-      this.geometry = null;
-      this.material = null;
-      this.texture = null;
+    Mesh2.Builder = Builder;
+    let defaultBuilder;
+    function getDefaultBuilder() {
+      return defaultBuilder != null ? defaultBuilder : defaultBuilder = new Builder();
     }
-  }
-  class ViewerEnvironment {
-    constructor(settings) {
-      __publicField(this, "plane");
-      __publicField(this, "skyLight");
-      __publicField(this, "sunLight");
-      this.plane = new EnvironmentPlane();
-      this.skyLight = new THREE__namespace.HemisphereLight();
-      this.sunLight = new THREE__namespace.DirectionalLight();
-      this.applyViewerSettings(settings);
+    Mesh2.getDefaultBuilder = getDefaultBuilder;
+  })(exports.Mesh || (exports.Mesh = {}));
+  class Object$1 {
+    constructor(vim, element, instances, meshes) {
+      __publicField(this, "vim");
+      __publicField(this, "element");
+      __publicField(this, "instances");
+      __publicField(this, "_color");
+      __publicField(this, "_boundingBox");
+      __publicField(this, "_meshes");
+      this.vim = vim;
+      this.element = element;
+      this.instances = instances;
+      this._meshes = meshes;
     }
-    getElements() {
-      return [this.plane.mesh, this.skyLight, this.sunLight];
+    get color() {
+      return this._color;
     }
-    applyViewerSettings(settings) {
-      this.plane.applyViewerSettings(settings);
-      this.skyLight.color.copy(settings.getSkylightColor());
-      this.skyLight.groundColor.copy(settings.getSkylightGroundColor());
-      this.skyLight.intensity = settings.getSkylightIntensity();
-      this.sunLight.color.copy(settings.getSunlightColor());
-      this.sunLight.position.copy(settings.getSunlightPosition());
-      this.sunLight.intensity = settings.getSunlightIntensity();
-    }
-    applyVimSettings(settings, box) {
-      this.plane.applyVimSettings(settings, box);
-    }
-  }
-  class ViewerRenderer {
-    constructor(canvas, settings) {
-      __publicField(this, "camera");
-      __publicField(this, "renderer");
-      __publicField(this, "clock", new THREE__namespace.Clock());
-      __publicField(this, "canvas");
-      __publicField(this, "scene");
-      __publicField(this, "meshes", []);
-      __publicField(this, "localBoundingBox");
-      __publicField(this, "worldBoundingBox");
-      __publicField(this, "fitToCanvas", () => {
-        const [width, height] = this.getContainerSize();
-        this.renderer.setSize(width, height);
-        this.camera.aspect = width / height;
-        this.camera.updateProjectionMatrix();
-      });
-      this.renderer = new THREE__namespace.WebGLRenderer({
-        canvas,
-        antialias: true,
-        precision: "highp",
-        alpha: true,
-        stencil: false,
-        powerPreference: "high-performance",
-        logarithmicDepthBuffer: true
-      });
-      this.canvas = this.renderer.domElement;
-      this.renderer.setPixelRatio(window.devicePixelRatio);
-      this.renderer.shadowMap.enabled = false;
-      this.camera = new THREE__namespace.PerspectiveCamera();
-      this.scene = new THREE__namespace.Scene();
-      this.localBoundingBox = new THREE__namespace.Box3();
-      this.fitToCanvas();
-      this.setOnResize(this.fitToCanvas, settings.getCanvasResizeDelay());
-    }
-    setOnResize(callback, timeout) {
-      let timerId;
-      window.addEventListener("resize", function() {
-        if (timerId !== void 0) {
-          clearTimeout(timerId);
-          timerId = void 0;
-        }
-        timerId = setTimeout(function() {
-          timerId = void 0;
-          callback();
-        }, timeout);
-      });
-    }
-    getBoundingSphere() {
-      var _a;
-      return (_a = this.worldBoundingBox) == null ? void 0 : _a.getBoundingSphere(new THREE__namespace.Sphere());
+    getBimElement() {
+      return this.vim.document.getElement(this.element);
     }
     getBoundingBox() {
-      var _a;
-      return (_a = this.worldBoundingBox) == null ? void 0 : _a.clone();
+      if (this._boundingBox)
+        return this._boundingBox;
+      const geometry = exports.Geometry.createGeometryFromInstances(this.vim.document.g3d, this.instances);
+      geometry.applyMatrix4(this.vim.getMatrix());
+      geometry.computeBoundingBox();
+      this._boundingBox = geometry.boundingBox;
+      geometry.dispose();
+      return this._boundingBox;
     }
-    render() {
-      this.renderer.render(this.scene, this.camera);
+    getCenter(target = new THREE__namespace.Vector3()) {
+      return this.getBoundingBox().getCenter(target);
     }
-    getContainerSize() {
-      return [
-        this.canvas.parentElement.clientWidth,
-        this.canvas.parentElement.clientHeight
-      ];
+    getBoundingSphere(target = new THREE__namespace.Sphere()) {
+      return this.getBoundingBox().getBoundingSphere(target);
     }
-    clearScene() {
-      this.meshes.forEach((m) => this.scene.remove(m));
-      this.meshes = [];
-      this.localBoundingBox = void 0;
-      this.worldBoundingBox = void 0;
+    createWireframe() {
+      const wireframe = exports.Mesh.getDefaultBuilder().createWireframe(this.vim.document.g3d, this.instances);
+      wireframe.applyMatrix4(this.vim.getMatrix());
+      return wireframe;
     }
-    addObjects(meshes) {
-      meshes.forEach((m) => {
-        this.addObject(m);
-      });
-    }
-    addObject(mesh) {
-      this.scene.add(mesh);
-    }
-    removeObject(mesh) {
-      this.scene.remove(mesh);
-      const i = this.meshes.indexOf(mesh);
-      if (i > 0)
-        this.meshes.splice(i, 1);
-    }
-    addScene(scene) {
-      var _a;
-      scene.meshes.forEach((m) => {
-        this.scene.add(m);
-        this.meshes.push(m);
-      });
-      this.localBoundingBox = this.localBoundingBox ? this.localBoundingBox.union(scene.boundingBox) : scene.boundingBox.clone();
-      this.worldBoundingBox = (_a = this.worldBoundingBox) != null ? _a : this.localBoundingBox;
-    }
-    applyMatrix4(matrix) {
-      for (let i = 0; i < this.meshes.length; i++) {
-        this.meshes[i].matrixAutoUpdate = false;
-        this.meshes[i].matrix.copy(matrix);
-      }
-      this.worldBoundingBox = this.localBoundingBox.clone().applyMatrix4(matrix);
-    }
-    computeBoundingBox(matrix) {
-      this.localBoundingBox = this._computeBoundingBox(this.scene);
-      this.worldBoundingBox = this.localBoundingBox.clone().applyMatrix4(matrix);
-    }
-    _computeBoundingBox(scene) {
-      let box;
-      const grow = (geometry, matrix2) => {
-        geometry.computeBoundingSphere();
-        let currentBox = geometry.boundingBox.clone();
-        currentBox = currentBox.applyMatrix4(matrix2);
-        box = box ? box.union(currentBox) : currentBox;
-      };
-      const matrix = new THREE__namespace.Matrix4();
-      scene.traverse((obj) => {
-        if (obj instanceof THREE__namespace.InstancedMesh) {
-          for (let i = 0; i < obj.count; i++) {
-            obj.getMatrixAt(i, matrix);
-            grow(obj.geometry, matrix);
-          }
-        } else if (obj instanceof THREE__namespace.Mesh) {
-          grow(obj.geometry, obj.matrix);
+    changeColor(color = void 0) {
+      for (let m = 0; m < this._meshes.length; m++) {
+        const [mesh, index] = this._meshes[m];
+        if (mesh.userData.merged) {
+          this.changeMergedMeshColor(mesh, index, color);
+        } else {
+          this.changeInstancedMeshColor(mesh, index, color);
         }
-      });
-      return box != null ? box : new THREE__namespace.Box3();
+      }
+      this._color = color;
+    }
+    getMergedMeshStart(mesh, index) {
+      return mesh.userData.submeshes[index];
+    }
+    getMergedMeshEnd(mesh, index) {
+      return index + 1 < mesh.userData.submeshes.length ? mesh.userData.submeshes[index + 1] : mesh.geometry.getIndex().count;
+    }
+    changeMergedMeshColor(mesh, index, color) {
+      if (!color) {
+        this.resetMergedMeshColor(mesh, index);
+        return;
+      }
+      const start = this.getMergedMeshStart(mesh, index);
+      const end = this.getMergedMeshEnd(mesh, index);
+      const colors = mesh.geometry.getAttribute("color");
+      const uvs = mesh.geometry.getAttribute("uv");
+      const indices = mesh.geometry.getIndex();
+      for (let i = start; i < end; i++) {
+        const v = indices.getX(i);
+        colors.setXYZ(v, color.r, color.g, color.b);
+        uvs.setY(v, 0);
+      }
+      colors.needsUpdate = true;
+      uvs.needsUpdate = true;
+    }
+    resetMergedMeshColor(mesh, index) {
+      const colors = mesh.geometry.getAttribute("color");
+      const uvs = mesh.geometry.getAttribute("uv");
+      const indices = mesh.geometry.getIndex();
+      let mergedIndex = this.getMergedMeshStart(mesh, index);
+      const instance = this.vim.scene.getInstanceFromMesh(mesh, index);
+      const g3d = this.vim.document.g3d;
+      const g3dMesh = g3d.instanceMeshes[instance];
+      const subStart = g3d.getMeshSubmeshStart(g3dMesh);
+      const subEnd = g3d.getMeshSubmeshEnd(g3dMesh);
+      for (let sub = subStart; sub < subEnd; sub++) {
+        const start = g3d.getSubmeshIndexStart(sub);
+        const end = g3d.getSubmeshIndexEnd(sub);
+        const color = g3d.getSubmeshColor(sub);
+        for (let i = start; i < end; i++) {
+          const v = indices.getX(mergedIndex);
+          colors.setXYZ(v, color[0], color[1], color[2]);
+          uvs.setY(v, 1);
+          mergedIndex++;
+        }
+      }
+      colors.needsUpdate = true;
+      uvs.needsUpdate = true;
+    }
+    changeInstancedMeshColor(mesh, index, color) {
+      if (mesh.instanceColor === null) {
+        const colorSize = mesh.geometry.getAttribute("color").itemSize;
+        const colors = new Float32Array(mesh.count * colorSize);
+        colors.fill(1);
+        mesh.instanceColor = new THREE__namespace.InstancedBufferAttribute(colors, 4);
+        const useVertexColor = new Float32Array(mesh.count);
+        useVertexColor.fill(1);
+        mesh.geometry.setAttribute("useVertexColor", new THREE__namespace.InstancedBufferAttribute(useVertexColor, 1));
+      }
+      if (color) {
+        mesh.instanceColor.setXYZW(index, color.r, color.g, color.b, 1);
+        mesh.geometry.getAttribute("useVertexColor").setX(index, 0);
+      } else {
+        mesh.geometry.getAttribute("useVertexColor").setX(index, 1);
+      }
+      mesh.geometry.getAttribute("useVertexColor").needsUpdate = true;
+      mesh.instanceColor.needsUpdate = true;
+    }
+    hideInstanced(mesh, index) {
+      this.vim.scene.swapInstances(mesh, index, mesh.count - 1);
+      mesh.count--;
+    }
+    showInstanced(mesh, index) {
+      this.vim.scene.swapInstances(mesh, index, mesh.instanceMatrix.count - 1);
+      mesh.count++;
+    }
+    showMerged() {
+      throw new Error("Show Hide not yet implemented for merged meshes");
+    }
+  }
+  class Vim {
+    constructor(vim, scene) {
+      __publicField(this, "document");
+      __publicField(this, "scene");
+      __publicField(this, "settings");
+      __publicField(this, "_index");
+      __publicField(this, "_elementToInstance");
+      __publicField(this, "_elementIdToElement");
+      __publicField(this, "_elementToObject", new Map());
+      this.document = vim;
+      this.scene = scene;
+      this._elementToInstance = this.mapElementToInstance();
+      this._elementIdToElement = this.mapElementIdToElement();
+    }
+    mapElementToInstance() {
+      const map = new Map();
+      const instanceCount = this.document.getInstanceCount();
+      for (let instance = 0; instance < instanceCount; instance++) {
+        const element = this.document.getElementFromInstance(instance);
+        if (element === void 0)
+          continue;
+        const instances = map.get(element);
+        if (instances) {
+          instances.push(instance);
+        } else {
+          map.set(element, [instance]);
+        }
+      }
+      return map;
+    }
+    mapElementIdToElement() {
+      const map = new Map();
+      const elementIds = this.document.getIntColumn(this.document.getElementTable(), "Id");
+      let negativeReported = false;
+      let duplicateReported = false;
+      for (let element = 0; element < elementIds.length; element++) {
+        const id = elementIds[element];
+        if (id < 0) {
+          if (!negativeReported) {
+            console.error("Ignoring negative element ids. Check source data.");
+            negativeReported = true;
+          }
+          continue;
+        }
+        if (map.has(id)) {
+          if (!duplicateReported) {
+            console.error("Ignoring duplicate element ids. Check source data.");
+            duplicateReported = true;
+            continue;
+          }
+        }
+        map.set(id, element);
+      }
+      return map;
+    }
+    applySettings(settings) {
+      this.settings = settings;
+      this.scene.applyMatrix4(this.settings.getMatrix());
+    }
+    get index() {
+      return this._index;
+    }
+    set index(index) {
+      this._index = index;
+      this.scene.setIndex(index);
+    }
+    getMatrix() {
+      return this.settings.getMatrix();
+    }
+    getObjectFromMesh(mesh, index) {
+      const element = this.getElementFromMesh(mesh, index);
+      return this.getObjectFromElement(element);
+    }
+    getObjectFromInstance(instance) {
+      const element = this.document.getElementFromInstance(instance);
+      return this.getObjectFromElement(element);
+    }
+    getObjectFromElementId(id) {
+      const element = this._elementIdToElement.get(id);
+      return this.getObjectFromElement(element);
+    }
+    getObjectFromElement(index) {
+      if (this._elementToObject.has(index)) {
+        return this._elementToObject.get(index);
+      }
+      const instances = this._elementToInstance.get(index);
+      const meshes = this.getMeshesFromInstances(instances);
+      if (!meshes)
+        return;
+      const result = new Object$1(this, index, instances, meshes);
+      this._elementToObject.set(index, result);
+      return result;
+    }
+    getMeshesFromInstances(instances) {
+      if (!(instances == null ? void 0 : instances.length))
+        return;
+      const meshes = [];
+      for (let i = 0; i < instances.length; i++) {
+        const instance = instances[i];
+        if (instance < 0)
+          continue;
+        const [mesh, index] = this.scene.getMeshFromInstance(instance);
+        if (!mesh)
+          continue;
+        meshes.push([mesh, index]);
+      }
+      if (meshes.length === 0)
+        return;
+      return meshes;
+    }
+    getElementFromMesh(mesh, index) {
+      if (!mesh || index < 0)
+        return -1;
+      const instance = this.scene.getInstanceFromMesh(mesh, index);
+      return this.document.getElementFromInstance(instance);
     }
   }
   class BFastHeader {
@@ -6860,7 +7210,7 @@ var vim = function(exports, THREE2) {
       this.dataEnd = dataEnd;
       this.numArrays = numArrays;
     }
-    static fromArray(array, byteLength) {
+    static createFromArray(array, byteLength) {
       if (array[1] !== 0)
         throw new Error("Expected 0 in byte position 0");
       if (array[3] !== 0)
@@ -6881,12 +7231,12 @@ var vim = function(exports, THREE2) {
       this.names = names;
       this.buffers = buffers;
     }
-    static fromArray(bytes) {
-      return this.fromArrayBuffer(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    static createFromArray(bytes) {
+      return this.createFromArrayBuffer(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     }
-    static fromArrayBuffer(arrayBuffer, byteOffset = 0, byteLength = arrayBuffer.byteLength - byteOffset) {
+    static createFromArrayBuffer(arrayBuffer, byteOffset = 0, byteLength = arrayBuffer.byteLength - byteOffset) {
       const data = new Int32Array(arrayBuffer, byteOffset, byteLength / 4);
-      const header = BFastHeader.fromArray(data, byteLength);
+      const header = BFastHeader.createFromArray(data, byteLength);
       const buffers = [];
       let pos = 8;
       for (let i = 0; i < header.numArrays; ++i) {
@@ -6921,7 +7271,7 @@ var vim = function(exports, THREE2) {
       return new BFast(header, names, buffers.slice(1));
     }
   }
-  class AttributeDescriptor {
+  class G3dAttributeDescriptor {
     constructor(description, association, semantic, attributeTypeIndex, dataType, dataArity) {
       __publicField(this, "description");
       __publicField(this, "association");
@@ -6951,17 +7301,17 @@ var vim = function(exports, THREE2) {
       return match(this.association, other.association) && match(this.semantic, other.semantic) && match(this.attributeTypeIndex, other.attributeTypeIndex) && match(this.dataType, other.dataType);
     }
   }
-  class Attribute {
+  class G3dAttribute {
     constructor(descriptor, bytes) {
       __publicField(this, "descriptor");
       __publicField(this, "bytes");
       __publicField(this, "data");
       this.descriptor = descriptor;
       this.bytes = bytes;
-      this.data = Attribute.castData(bytes, descriptor.dataType);
+      this.data = G3dAttribute.castData(bytes, descriptor.dataType);
     }
     static fromString(descriptor, buffer) {
-      return new this(AttributeDescriptor.fromString(descriptor), buffer);
+      return new this(G3dAttributeDescriptor.fromString(descriptor), buffer);
     }
     static castData(bytes, dataType) {
       switch (dataType) {
@@ -6988,7 +7338,7 @@ var vim = function(exports, THREE2) {
       this.attributes = attributes;
     }
     findAttribute(descriptor) {
-      const filter = AttributeDescriptor.fromString(descriptor);
+      const filter = G3dAttributeDescriptor.fromString(descriptor);
       for (let i = 0; i < this.attributes.length; ++i) {
         const attribute = this.attributes[i];
         if (attribute.descriptor.matches(filter))
@@ -7008,7 +7358,7 @@ var vim = function(exports, THREE2) {
       const attributes = [];
       const nDescriptors = bfast.buffers.length - 1;
       for (let i = 0; i < nDescriptors; ++i) {
-        const attribute = Attribute.fromString(bfast.names[i + 1], bfast.buffers[i + 1]);
+        const attribute = G3dAttribute.fromString(bfast.names[i + 1], bfast.buffers[i + 1]);
         attributes.push(attribute);
       }
       return new AbstractG3d(meta, attributes);
@@ -7038,10 +7388,10 @@ var vim = function(exports, THREE2) {
       __publicField(this, "meshInstances");
       __publicField(this, "meshTransparent");
       __publicField(this, "rawG3d");
-      __publicField(this, "matrixArity", 16);
-      __publicField(this, "colorArity", 4);
-      __publicField(this, "positionArity", 3);
-      __publicField(this, "defaultColor", new Float32Array([1, 1, 1, 1]));
+      __publicField(this, "MATRIX_SIZE", 16);
+      __publicField(this, "COLOR_SIZE", 4);
+      __publicField(this, "POSITION_SIZE", 3);
+      __publicField(this, "DEFAULT_COLOR", new Float32Array([1, 1, 1, 1]));
       __publicField(this, "computeMeshInstances", () => {
         const result = [];
         for (let i = 0; i < this.instanceMeshes.length; i++) {
@@ -7056,10 +7406,10 @@ var vim = function(exports, THREE2) {
         }
         return result;
       });
-      __publicField(this, "getVertexCount", () => this.positions.length / this.positionArity);
+      __publicField(this, "getVertexCount", () => this.positions.length / this.POSITION_SIZE);
       __publicField(this, "getMeshCount", () => this.meshSubmeshes.length);
       __publicField(this, "getInstanceCount", () => this.instanceMeshes.length);
-      __publicField(this, "getMaterialCount", () => this.materialColors.length / this.colorArity);
+      __publicField(this, "getMaterialCount", () => this.materialColors.length / this.COLOR_SIZE);
       var _a, _b, _c, _d, _e, _f, _g, _h;
       this.rawG3d = g3d;
       this.positions = (_a = g3d.findAttribute(VimAttributes.positions)) == null ? void 0 : _a.data;
@@ -7107,7 +7457,7 @@ var vim = function(exports, THREE2) {
         const subEnd = this.getMeshSubmeshEnd(m);
         for (let s = subStart; s < subEnd; s++) {
           const material = this.submeshMaterial[s];
-          const alpha = this.materialColors[material * this.colorArity + this.colorArity - 1];
+          const alpha = this.materialColors[material * this.COLOR_SIZE + this.COLOR_SIZE - 1];
           result[m] = result[m] || alpha < 1;
         }
       }
@@ -7154,15 +7504,15 @@ var vim = function(exports, THREE2) {
     getSubmeshColor(submesh) {
       return this.getMaterialColor(this.submeshMaterial[submesh]);
     }
-    getInstanceTransform(instance) {
-      return this.instanceTransforms.subarray(instance * this.matrixArity, (instance + 1) * this.matrixArity);
+    getInstanceMatrix(instance) {
+      return this.instanceTransforms.subarray(instance * this.MATRIX_SIZE, (instance + 1) * this.MATRIX_SIZE);
     }
     getMaterialColor(material) {
       if (material < 0)
-        return this.defaultColor;
-      return this.materialColors.subarray(material * this.colorArity, (material + 1) * this.colorArity);
+        return this.DEFAULT_COLOR;
+      return this.materialColors.subarray(material * this.COLOR_SIZE, (material + 1) * this.COLOR_SIZE);
     }
-    static fromBfast(bfast) {
+    static createFromBfast(bfast) {
       const base = AbstractG3d.fromBfast(bfast);
       return new G3d(base);
     }
@@ -7180,8 +7530,8 @@ var vim = function(exports, THREE2) {
       isPresent(this.submeshIndexOffset, "submeshIndexOffset");
       isPresent(this.submeshMaterial, "submeshMaterial");
       isPresent(this.materialColors, "materialColors");
-      if (this.positions.length % this.positionArity !== 0) {
-        throw new Error("Invalid position buffer, must be divisible by " + this.positionArity);
+      if (this.positions.length % this.POSITION_SIZE !== 0) {
+        throw new Error("Invalid position buffer, must be divisible by " + this.POSITION_SIZE);
       }
       if (this.indices.length % 3 !== 0) {
         throw new Error("Invalid Index Count, must be divisible by 3");
@@ -7191,11 +7541,11 @@ var vim = function(exports, THREE2) {
           throw new Error("Vertex index out of bound");
         }
       }
-      if (this.instanceMeshes.length !== this.instanceTransforms.length / this.matrixArity) {
+      if (this.instanceMeshes.length !== this.instanceTransforms.length / this.MATRIX_SIZE) {
         throw new Error("Instance buffers mismatched");
       }
-      if (this.instanceTransforms.length % this.matrixArity !== 0) {
-        throw new Error("Invalid InstanceTransform buffer, must respect arity " + this.matrixArity);
+      if (this.instanceTransforms.length % this.MATRIX_SIZE !== 0) {
+        throw new Error("Invalid InstanceTransform buffer, must respect arity " + this.MATRIX_SIZE);
       }
       for (let i = 0; i < this.instanceMeshes.length; i++) {
         if (this.instanceMeshes[i] >= this.meshSubmeshes.length) {
@@ -7235,8 +7585,8 @@ var vim = function(exports, THREE2) {
           throw new Error("submeshMaterial out of bound");
         }
       }
-      if (this.materialColors.length % this.colorArity !== 0) {
-        throw new Error("Invalid material color buffer, must be divisible by " + this.colorArity);
+      if (this.materialColors.length % this.COLOR_SIZE !== 0) {
+        throw new Error("Invalid material color buffer, must be divisible by " + this.COLOR_SIZE);
       }
     }
   }
@@ -7247,11 +7597,30 @@ var vim = function(exports, THREE2) {
       __publicField(this, "g3d");
       __publicField(this, "entities");
       __publicField(this, "strings");
+      __publicField(this, "_instanceToElement");
+      __publicField(this, "getStringColumn", (table, colNameNoPrefix) => table == null ? void 0 : table.get("string:" + colNameNoPrefix));
+      __publicField(this, "getIndexColumn", (table, tableName, fieldName) => table == null ? void 0 : table.get(`index:${tableName}:${fieldName}`));
+      __publicField(this, "getDataColumn", (table, typePrefix, colNameNoPrefix) => {
+        var _a;
+        return (_a = table == null ? void 0 : table.get(typePrefix + colNameNoPrefix)) != null ? _a : table == null ? void 0 : table.get("numeric:" + colNameNoPrefix);
+      });
+      __publicField(this, "getIntColumn", (table, colNameNoPrefix) => this.getDataColumn(table, "int:", colNameNoPrefix));
+      __publicField(this, "getByteColumn", (table, colNameNoPrefix) => this.getDataColumn(table, "byte:", colNameNoPrefix));
+      __publicField(this, "getFloatColumn", (table, colNameNoPrefix) => this.getDataColumn(table, "float:", colNameNoPrefix));
+      __publicField(this, "getDoubleColumn", (table, colNameNoPrefix) => this.getDataColumn(table, "double:", colNameNoPrefix));
+      __publicField(this, "getElementTable", () => {
+        var _a, _b, _c;
+        return (_c = (_a = this.entities) == null ? void 0 : _a.get(_Document.TABLE_ELEMENT)) != null ? _c : (_b = this.entities) == null ? void 0 : _b.get(_Document.TABLE_ELEMENT_LEGACY);
+      });
+      __publicField(this, "getInstanceTable", () => this.entities.get(_Document.TABLE_NODE));
       this.header = header;
       this.assets = assets;
       this.g3d = g3d;
       this.entities = entities;
       this.strings = strings;
+    }
+    getElement(element) {
+      return this.getEntity(_Document.TABLE_ELEMENT, element);
     }
     getEntity(type, index) {
       var _a;
@@ -7272,11 +7641,25 @@ var vim = function(exports, THREE2) {
       }
       return r;
     }
-    static parseFromArrayBuffer(data) {
-      const bfast = BFast.fromArrayBuffer(data);
-      return _Document.parseFromBFast(bfast);
+    getElementFromInstance(instance) {
+      return this.getInstanceToElementMap()[instance];
     }
-    static parseFromBFast(bfast) {
+    getInstanceCount() {
+      return this.getInstanceToElementMap().length;
+    }
+    getInstanceToElementMap() {
+      var _a;
+      if (this._instanceToElement)
+        return this._instanceToElement;
+      const table = this.getInstanceTable();
+      this._instanceToElement = (_a = this.getIndexColumn(table, _Document.TABLE_ELEMENT, "Element")) != null ? _a : table == null ? void 0 : table.get(_Document.TABLE_ELEMENT_LEGACY);
+      return this._instanceToElement;
+    }
+    static createFromArrayBuffer(data) {
+      const bfast = BFast.createFromArrayBuffer(data);
+      return _Document.createFromBFast(bfast);
+    }
+    static createFromBFast(bfast) {
       if (bfast.buffers.length < 5) {
         throw new Error("VIM requires at least five BFast buffers");
       }
@@ -7290,9 +7673,9 @@ var vim = function(exports, THREE2) {
       const entityData = lookup.get("entities");
       const stringData = lookup.get("strings");
       const header = new TextDecoder("utf-8").decode(headerData);
-      const g3d = G3d.fromBfast(BFast.fromArray(g3dData));
-      const assets = BFast.fromArray(assetData);
-      const entities = _Document.parseEntityTables(BFast.fromArray(entityData));
+      const g3d = G3d.createFromBfast(BFast.createFromArray(g3dData));
+      const assets = BFast.createFromArray(assetData);
+      const entities = _Document.parseEntityTables(BFast.createFromArray(entityData));
       const strings = new TextDecoder("utf-8").decode(stringData).split("\0");
       g3d.validate();
       return new _Document(header, assets, g3d, entities, strings);
@@ -7303,7 +7686,7 @@ var vim = function(exports, THREE2) {
         const current = bfast.names[i];
         const tableName = current.substring(current.indexOf(":") + 1);
         const buffer = bfast.buffers[i];
-        const next = _Document.parseEntityTable(BFast.fromArray(buffer));
+        const next = _Document.parseEntityTable(BFast.createFromArray(buffer));
         result.set(tableName, next);
       }
       return result;
@@ -7347,229 +7730,58 @@ var vim = function(exports, THREE2) {
     }
   };
   let Document = _Document;
-  __publicField(Document, "tableElement", "Vim.Element");
-  __publicField(Document, "tableElementLegacy", "Rvt.Element");
-  __publicField(Document, "tableNode", "Vim.Node");
-  class Vim {
-    constructor(vim2, scene) {
-      __publicField(this, "vim");
-      __publicField(this, "scene");
-      __publicField(this, "elementIndexToInstanceIndices");
-      __publicField(this, "elementIdToElementIndex");
-      __publicField(this, "getElementIndexFromElementId", (elementId) => this.elementIdToElementIndex.get(elementId));
-      __publicField(this, "getStringColumn", (table, colNameNoPrefix) => table == null ? void 0 : table.get("string:" + colNameNoPrefix));
-      __publicField(this, "getIndexColumn", (table, tableName, fieldName) => table == null ? void 0 : table.get(`index:${tableName}:${fieldName}`));
-      __publicField(this, "getDataColumn", (table, typePrefix, colNameNoPrefix) => {
-        var _a;
-        return (_a = table == null ? void 0 : table.get(typePrefix + colNameNoPrefix)) != null ? _a : table == null ? void 0 : table.get("numeric:" + colNameNoPrefix);
-      });
-      __publicField(this, "getIntColumn", (table, colNameNoPrefix) => this.getDataColumn(table, "int:", colNameNoPrefix));
-      __publicField(this, "getByteColumn", (table, colNameNoPrefix) => this.getDataColumn(table, "byte:", colNameNoPrefix));
-      __publicField(this, "getFloatColumn", (table, colNameNoPrefix) => this.getDataColumn(table, "float:", colNameNoPrefix));
-      __publicField(this, "getDoubleColumn", (table, colNameNoPrefix) => this.getDataColumn(table, "double:", colNameNoPrefix));
-      __publicField(this, "getElementIndices", (table) => {
-        var _a;
-        return (_a = this.getIndexColumn(table, Document.tableElement, "Element")) != null ? _a : table == null ? void 0 : table.get(Document.tableElementLegacy);
-      });
-      __publicField(this, "getElementTable", () => {
-        var _a, _b, _c;
-        return (_c = (_a = this.vim.entities) == null ? void 0 : _a.get(Document.tableElement)) != null ? _c : (_b = this.vim.entities) == null ? void 0 : _b.get(Document.tableElementLegacy);
-      });
-      __publicField(this, "getNodeTable", () => this.vim.entities.get(Document.tableNode));
-      this.vim = vim2;
-      this.scene = scene;
-      this.elementIndexToInstanceIndices = this.mapElementIndexToInstanceIndices();
-      this.elementIdToElementIndex = this.mapElementIdToIndex();
-    }
-    mapElementIndexToInstanceIndices() {
-      const map = new Map();
-      const nodeElements = this.getElementIndices(this.getNodeTable());
-      const nodeCount = nodeElements.length;
-      for (let node = 0; node < nodeCount; node++) {
-        const element = nodeElements[node];
-        if (element === void 0)
-          continue;
-        const nodes = map.get(element);
-        if (nodes) {
-          nodes.push(node);
-        } else {
-          map.set(element, [node]);
-        }
-      }
-      return map;
-    }
-    mapElementIdToIndex() {
-      const map = new Map();
-      const elementIds = this.getIntColumn(this.getElementTable(), "Id");
-      let negativeReported = false;
-      let duplicateReported = false;
-      for (let element = 0; element < elementIds.length; element++) {
-        const id = elementIds[element];
-        if (id < 0) {
-          if (!negativeReported) {
-            console.error("Ignoring negative element ids. Check source data.");
-            negativeReported = true;
-          }
-          continue;
-        }
-        if (map.has(id)) {
-          if (!duplicateReported) {
-            console.error("Ignoring duplicate element ids. Check source data.");
-            duplicateReported = true;
-            continue;
-          }
-        }
-        map.set(id, element);
-      }
-      return map;
-    }
-    getNodeIndicesFromElementIndex(elementIndex) {
-      return this.elementIndexToInstanceIndices.get(elementIndex);
-    }
-    getNodeIndicesFromElementIndices(elementIndices) {
-      return elementIndices.flatMap((e) => this.getNodeIndicesFromElementIndex(e)).filter((n) => n !== void 0);
-    }
-    getInstanceIndicesFromElementIds(elementIds) {
-      if (!elementIds)
-        throw new Error("undefined argument");
-      const elementIndices = elementIds.map((id) => this.getElementIndexFromElementId(id)).filter((i) => i !== void 0);
-      return this.getNodeIndicesFromElementIndices(elementIndices);
-    }
-    getMeshesFromElementIndex(elementIndex) {
-      const nodeIndices = this.getNodeIndicesFromElementIndex(elementIndex);
-      if (!nodeIndices || !nodeIndices.length)
-        return null;
-      const result = [];
-      nodeIndices.forEach((i) => {
-        const mesh = this.getMeshFromNodeIndex(i);
-        if (mesh)
-          result.push(mesh);
-      });
-      return result;
-    }
-    getMeshFromNodeIndex(nodeIndex) {
-      if (nodeIndex < 0)
-        throw new Error("Invalid negative index");
-      const array = this.scene.instanceToThreeMesh.get(nodeIndex);
-      return array ? array[0] : void 0;
-    }
-    getNodeIndexFromMesh(mesh, instance) {
-      if (!mesh || instance < 0)
-        return -1;
-      const nodes = this.scene.threeMeshIdToInstance.get(mesh.id);
-      if (!nodes)
-        return -1;
-      return nodes[instance];
-    }
-    getElementIndexFromMesh(mesh, instance) {
-      if (!mesh || instance < 0)
-        return -1;
-      const nodeIndex = this.getNodeIndexFromMesh(mesh, instance);
-      return this.getElementIndexFromNodeIndex(nodeIndex);
-    }
-    getElementIndexFromNodeIndex(nodeIndex) {
-      if (nodeIndex < 0)
-        return -1;
-      const node = this.getNodeTable();
-      if (!node)
-        return -1;
-      const elements = this.getElementIndices(node);
-      if (!elements)
-        return -1;
-      return elements[nodeIndex];
-    }
-    getElementIdFromNodeIndex(nodeIndex) {
-      if (nodeIndex < 0)
-        return -1;
-      const elementIndex = this.getElementIndexFromNodeIndex(nodeIndex);
-      if (elementIndex < 0)
-        return -1;
-      const ids = this.getIntColumn(this.getElementTable(), "Id");
-      if (!ids)
-        return -1;
-      return ids[elementIndex];
-    }
-    getElementName(elementIndex) {
-      if (elementIndex < 0)
-        return "";
-      const names = this.getStringColumn(this.getElementTable(), "Name");
-      if (!names)
-        return "";
-      const nameIndex = names[elementIndex];
-      return this.getStringFromIndex(nameIndex);
-    }
-    getStringFromIndex(stringIndex) {
-      return stringIndex < 0 ? "" : this.vim.strings[stringIndex];
-    }
-  }
-  class MeshBuilder {
-    constructor(materialOpaque, materialTransparent) {
-      __publicField(this, "materialOpaque");
-      __publicField(this, "materialTransparent");
-      this.materialOpaque = materialOpaque != null ? materialOpaque : this.createDefaultOpaqueMaterial();
-      this.materialTransparent = materialTransparent != null ? materialTransparent : this.createDefaultTransparentMaterial();
-    }
-    createDefaultOpaqueMaterial() {
-      return new THREE__namespace.MeshPhongMaterial({
-        color: 10066329,
-        vertexColors: true,
-        flatShading: true,
-        side: THREE__namespace.DoubleSide,
-        shininess: 70
-      });
-    }
-    createDefaultTransparentMaterial() {
-      const material = this.createDefaultOpaqueMaterial();
-      material.transparent = true;
-      material.depthWrite = true;
-      return material;
-    }
-    createInstancedMeshes(g3d, transparency, instances) {
-      const result = [];
-      const set = instances ? new Set(instances) : void 0;
-      for (let mesh = 0; mesh < g3d.getMeshCount(); mesh++) {
-        let meshInstances = g3d.meshInstances[mesh];
-        if (!meshInstances)
-          continue;
-        meshInstances = set ? meshInstances.filter((i) => set.has(i)) : meshInstances;
-        if (meshInstances.length <= 1)
-          continue;
-        if (!transparencyMatches(transparency, g3d.meshTransparent[mesh])) {
-          continue;
-        }
-        const useAlpha = transparencyRequiresAlpha(transparency) && g3d.meshTransparent[mesh];
-        const geometry = createFromMesh(g3d, mesh, useAlpha);
-        const resultMesh = this.createInstancedMesh(geometry, g3d, meshInstances, useAlpha);
-        result.push(resultMesh);
-      }
-      return result;
-    }
-    createInstancedMesh(geometry, g3d, instances, useAlpha) {
-      const material = useAlpha ? this.materialTransparent : this.materialOpaque;
-      const result = new THREE__namespace.InstancedMesh(geometry, material, instances.length);
-      for (let i = 0; i < instances.length; i++) {
-        const matrix = getInstanceMatrix(g3d, instances[i]);
-        result.setMatrixAt(i, matrix);
-      }
-      result.userData.instances = instances;
-      return result;
-    }
-    createMergedMesh(g3d, transparency, instances) {
-      const merger = instances ? MeshMerger.MergeInstances(g3d, instances, transparency) : MeshMerger.MergeUniqueMeshes(g3d, transparency);
-      const geometry = merger.toBufferGeometry();
-      const material = transparencyRequiresAlpha(transparency) ? this.materialTransparent : this.materialOpaque;
-      const mesh = new THREE__namespace.Mesh(geometry, material);
-      mesh.userData.merged = true;
-      mesh.userData.instances = merger.instances;
-      return mesh;
-    }
-  }
+  __publicField(Document, "TABLE_ELEMENT", "Vim.Element");
+  __publicField(Document, "TABLE_ELEMENT_LEGACY", "Rvt.Element");
+  __publicField(Document, "TABLE_NODE", "Vim.Node");
   class Scene {
     constructor() {
       __publicField(this, "meshes", []);
       __publicField(this, "boundingBox", new THREE__namespace.Box3());
-      __publicField(this, "instanceToThreeMesh", new Map());
-      __publicField(this, "threeMeshIdToInstance", new Map());
+      __publicField(this, "_instanceToThreeMesh", new Map());
+      __publicField(this, "_threeMeshIdToInstances", new Map());
+    }
+    getMeshFromInstance(instance) {
+      return this._instanceToThreeMesh.has(instance) ? this._instanceToThreeMesh.get(instance) : [];
+    }
+    getInstanceFromMesh(mesh, index) {
+      if (!mesh || index < 0)
+        return -1;
+      const instances = this._threeMeshIdToInstances.get(mesh.id);
+      if (!instances)
+        return -1;
+      return instances[index];
+    }
+    applyMatrix4(matrix) {
+      for (let m = 0; m < this.meshes.length; m++) {
+        this.meshes[m].matrixAutoUpdate = false;
+        this.meshes[m].matrix.copy(matrix);
+      }
+      this.boundingBox.applyMatrix4(matrix);
+    }
+    setIndex(index) {
+      for (let m = 0; m < this.meshes.length; m++) {
+        this.meshes[m].userData.index = index;
+      }
+    }
+    swapInstances(mesh, indexA, indexB) {
+      const array = this._threeMeshIdToInstances.get(mesh.id);
+      if (!array)
+        throw new Error("Could not find mesh with id : " + mesh.id);
+      if (indexA === indexB)
+        return;
+      const matrixA = new THREE__namespace.Matrix4();
+      const matrixB = new THREE__namespace.Matrix4();
+      mesh.getMatrixAt(indexA, matrixA);
+      mesh.getMatrixAt(indexB, matrixB);
+      mesh.setMatrixAt(indexA, matrixB);
+      mesh.setMatrixAt(indexB, matrixA);
+      const instanceA = array[indexA];
+      const instanceB = array[indexB];
+      this._instanceToThreeMesh.get(instanceA)[1] = indexB;
+      this._instanceToThreeMesh.get(instanceB)[1] = indexA;
+      array[indexA] = instanceB;
+      array[indexB] = instanceA;
+      mesh.instanceMatrix.needsUpdate = true;
     }
     addMergedMesh(mesh) {
       var _a, _b;
@@ -7578,12 +7790,12 @@ var vim = function(exports, THREE2) {
         throw new Error("Expected mesh to have userdata instances : number[]");
       }
       for (let i = 0; i < instances.length; i++) {
-        this.instanceToThreeMesh.set(instances[i], [[mesh, 0]]);
+        this._instanceToThreeMesh.set(instances[i], [mesh, i]);
       }
       mesh.geometry.computeBoundingBox();
       const box = mesh.geometry.boundingBox;
       this.boundingBox = (_b = (_a = this.boundingBox) == null ? void 0 : _a.union(box)) != null ? _b : box.clone();
-      this.threeMeshIdToInstance.set(mesh.id, instances);
+      this._threeMeshIdToInstances.set(mesh.id, instances);
       this.meshes.push(mesh);
       return this;
     }
@@ -7592,7 +7804,7 @@ var vim = function(exports, THREE2) {
       this.meshes.push(mesh);
       return this;
     }
-    static fromInstancedMeshes(meshes) {
+    static createFromInstancedMeshes(meshes) {
       const scene = new Scene();
       for (let m = 0; m < meshes.length; m++) {
         scene.registerInstancedMesh(meshes[m]);
@@ -7610,23 +7822,20 @@ var vim = function(exports, THREE2) {
         throw new Error("Expected mesh to have at least one instance");
       }
       for (let i = 0; i < instances.length; i++) {
-        this.instanceToThreeMesh.set(instances[i], [[mesh, i]]);
+        this._instanceToThreeMesh.set(instances[i], [mesh, i]);
       }
       const box = this.computeIntancedMeshBoundingBox(mesh);
       this.boundingBox = (_b = (_a = this.boundingBox) == null ? void 0 : _a.union(box)) != null ? _b : box.clone();
-      this.threeMeshIdToInstance.set(mesh.id, instances);
+      this._threeMeshIdToInstances.set(mesh.id, instances);
     }
     merge(other) {
       var _a, _b;
       other.meshes.forEach((mesh) => this.meshes.push(mesh));
-      other.instanceToThreeMesh.forEach((value, key) => {
-        var _a2;
-        const values = (_a2 = this.instanceToThreeMesh.get(key)) != null ? _a2 : [];
-        value.forEach((pair) => values.push(pair));
-        this.instanceToThreeMesh.set(key, value);
+      other._instanceToThreeMesh.forEach((value, key) => {
+        this._instanceToThreeMesh.set(key, value);
       });
-      other.threeMeshIdToInstance.forEach((value, key) => {
-        this.threeMeshIdToInstance.set(key, value);
+      other._threeMeshIdToInstances.forEach((value, key) => {
+        this._threeMeshIdToInstances.set(key, value);
       });
       this.boundingBox = (_b = (_a = this.boundingBox) == null ? void 0 : _a.union(other.boundingBox)) != null ? _b : other.boundingBox.clone();
       return this;
@@ -7644,41 +7853,43 @@ var vim = function(exports, THREE2) {
       }
       return result;
     }
-    static fromG3d(g3d, transparency = "all", instances = void 0) {
-      return createSceneFromG3d(g3d, transparency, instances);
+    static createFromG3d(g3d, transparency = "all", instances = void 0) {
+      const scene = new Scene();
+      const shared = Scene.createFromInstanciableMeshes(g3d, transparency, instances);
+      scene.merge(shared);
+      if (transparency !== "transparentOnly") {
+        const opaque = Scene.createFromMergeableMeshes(g3d, transparency === "allAsOpaque" ? "allAsOpaque" : "opaqueOnly", instances);
+        scene.merge(opaque);
+      }
+      if (exports.Transparency.requiresAlpha(transparency)) {
+        const transparent = Scene.createFromMergeableMeshes(g3d, "transparentOnly", instances);
+        scene.merge(transparent);
+      }
+      return scene;
+    }
+    static createFromInstanciableMeshes(g3d, transparency, instances = void 0, builder = exports.Mesh.getDefaultBuilder()) {
+      const meshes = builder.createInstancedMeshes(g3d, transparency, instances);
+      return Scene.createFromInstancedMeshes(meshes);
+    }
+    static createFromMergeableMeshes(g3d, transparency, instances = void 0, builder = exports.Mesh.getDefaultBuilder()) {
+      const mesh = builder.createMergedMesh(g3d, transparency, instances);
+      return new Scene().addMergedMesh(mesh);
     }
   }
-  function createSceneFromG3d(g3d, transparency = "all", instances = void 0) {
-    const scene = new Scene();
-    const builder = new MeshBuilder();
-    const shared = createSceneFromInstanciabledMeshes(g3d, transparency, instances, builder);
-    scene.merge(shared);
-    if (transparency !== "transparentOnly") {
-      const opaque = createSceneFromMergeableMeshes(g3d, transparency === "allAsOpaque" ? "allAsOpaque" : "opaqueOnly", instances, builder);
-      scene.merge(opaque);
+  class Loader {
+    constructor() {
+      __publicField(this, "_loader");
+      __publicField(this, "_loaded", new Set());
+      this._loader = new THREE__namespace.FileLoader();
+      THREE__namespace.Cache.enabled = true;
     }
-    if (transparencyRequiresAlpha(transparency)) {
-      const transparent = createSceneFromMergeableMeshes(g3d, "transparentOnly", instances, builder);
-      scene.merge(transparent);
-    }
-    return scene;
-  }
-  function createSceneFromInstanciabledMeshes(g3d, transparency, instances = void 0, builder = new MeshBuilder()) {
-    const meshes = builder.createInstancedMeshes(g3d, transparency, instances);
-    return Scene.fromInstancedMeshes(meshes);
-  }
-  function createSceneFromMergeableMeshes(g3d, transparency, instances = void 0, builder = new MeshBuilder()) {
-    const mesh = builder.createMergedMesh(g3d, transparency, instances);
-    return new Scene().addMergedMesh(mesh);
-  }
-  class VimLoader {
     loadFromUrl(url, transparency = "all", onLoad, onProgress, onError) {
-      const loader = new THREE__namespace.FileLoader();
-      loader.setResponseType("arraybuffer");
-      loader.setRequestHeader({
+      this._loader.setResponseType("arraybuffer");
+      this._loader.setRequestHeader({
         "Content-Encoding": "gzip"
       });
-      loader.load(url, (data) => {
+      this._loaded.add(url);
+      this._loader.load(url, (data) => {
         if (!data) {
           onError == null ? void 0 : onError(new ErrorEvent("Failed to obtain file at " + url));
           return;
@@ -7688,24 +7899,25 @@ var vim = function(exports, THREE2) {
           return;
         }
         onProgress == null ? void 0 : onProgress("processing");
-        const vim2 = Document.parseFromArrayBuffer(data);
-        const scene = this.loadFromVim(vim2, transparency);
+        if (this._loaded.has(url))
+          data = data.slice(0);
+        const vim = Document.createFromArrayBuffer(data);
+        const scene = this.loadFromVim(vim, transparency);
         onLoad == null ? void 0 : onLoad(scene);
       }, onProgress, (error) => {
         onError == null ? void 0 : onError(error);
       });
     }
     loadFromArrayBuffer(data, transparency, instances) {
-      const vim2 = Document.parseFromArrayBuffer(data);
-      return this.loadFromVim(vim2, transparency, instances);
+      const vim = Document.createFromArrayBuffer(data);
+      return this.loadFromVim(vim, transparency, instances);
     }
-    loadFromVim(vim2, transparency, instances) {
-      const scene = Scene.fromG3d(vim2.g3d, transparency, instances);
-      return new Vim(vim2, scene);
+    loadFromVim(vim, transparency, instances) {
+      const scene = Scene.createFromG3d(vim.g3d, transparency, instances);
+      return new Vim(vim, scene);
     }
   }
-  const NO_SCENE_LOADED = "No vim loaded in viewer. Ignoring";
-  const _Viewer = class {
+  class Viewer {
     constructor(options) {
       __publicField(this, "settings");
       __publicField(this, "environment");
@@ -7713,69 +7925,22 @@ var vim = function(exports, THREE2) {
       __publicField(this, "selection");
       __publicField(this, "camera");
       __publicField(this, "controls");
-      __publicField(this, "vimSettings");
-      __publicField(this, "vimScene");
-      __publicField(this, "state", "Uninitialized");
+      __publicField(this, "loader");
+      __publicField(this, "_vims", []);
       __publicField(this, "onMouseClick");
-      __publicField(this, "getElementIndexFromElementId", (elementId) => {
-        if (!this.vimScene)
-          throw new Error(NO_SCENE_LOADED);
-        return this.vimScene.getElementIndexFromElementId(elementId);
-      });
+      __publicField(this, "getVim", (index = 0) => this._vims[index]);
+      this.loader = new Loader();
       this.settings = new ViewerSettings(options);
-      const canvas = _Viewer.getOrCreateCanvas(this.settings.getCanvasId());
-      this.renderer = new ViewerRenderer(canvas, this.settings);
-      this.camera = new ViewerCamera(this.renderer, this.settings);
-      this.environment = new ViewerEnvironment(this.settings);
-      this.renderer.addObjects(this.environment.getElements());
+      const canvas = Viewer.getOrCreateCanvas(this.settings.getCanvasId());
+      this.renderer = new Renderer(canvas, this.settings);
+      this.camera = new Camera(this.renderer, this.settings);
+      this.environment = new Environment(this.settings);
+      this.environment.getObjects().forEach((o) => this.renderer.addObject(o));
       this.onMouseClick = this.defaultOnClick;
-      this.controls = new ViewerInput(this);
+      this.controls = new Input(this);
       this.controls.register();
       this.selection = new Selection(this);
       this.animate();
-    }
-    animate() {
-      requestAnimationFrame(() => this.animate());
-      const timeDelta = this.renderer.clock.getDelta();
-      this.camera.frameUpdate(timeDelta);
-      if (this.vimScene)
-        this.renderer.render();
-    }
-    loadVim(source = "https://vim.azureedge.net/samples/residence.vim", options, onLoad, onProgress, onError) {
-      if (this.vimSettings) {
-        throw new Error("There is already a vim loaded or loading");
-      }
-      const settings = new VimSettings(options);
-      const finish = (vim2) => {
-        const filter = settings.getElementIdsFilter();
-        if (filter)
-          this.filter(filter);
-        else
-          this.onVimLoaded(vim2, settings);
-        this.lookAtScene();
-        onLoad == null ? void 0 : onLoad(vim2);
-      };
-      if (typeof source === "string") {
-        new VimLoader().loadFromUrl(source, settings.getTransparency(), (vim2) => finish(vim2), (progress) => {
-          onProgress == null ? void 0 : onProgress(progress);
-        }, (error) => {
-          this.vimSettings = void 0;
-          this.vimScene = void 0;
-          onError == null ? void 0 : onError(error);
-        });
-      } else {
-        const vim2 = new VimLoader().loadFromArrayBuffer(source, settings.getTransparency());
-        finish(vim2);
-      }
-    }
-    onVimLoaded(vim2, settings) {
-      this.vimScene = vim2;
-      this.vimSettings = settings;
-      const matrix = this.vimSettings.getMatrix();
-      this.renderer.addScene(vim2.scene);
-      this.renderer.applyMatrix4(matrix);
-      this.renderer.render();
-      this.ApplyVimSettings();
     }
     static getOrCreateCanvas(canvasId) {
       let canvas = canvasId ? document.getElementById(canvasId) : void 0;
@@ -7785,174 +7950,123 @@ var vim = function(exports, THREE2) {
       }
       return canvas;
     }
-    unloadVim() {
-      this.vimScene = void 0;
-      this.vimSettings = void 0;
-      this.renderer.clearScene();
-      this.selection.clear();
+    animate() {
+      requestAnimationFrame(() => this.animate());
+      const timeDelta = this.renderer.clock.getDelta();
+      this.camera.update(timeDelta);
+      if (this._vims.length)
+        this.renderer.render();
     }
-    reloadVim(options) {
-      if (!this.vimScene)
-        throw new Error(NO_SCENE_LOADED);
+    addVim(vim) {
+      for (let i = 0; i <= this._vims.length; i++) {
+        if (this._vims[i] === void 0) {
+          this._vims[i] = vim;
+          vim.index = i;
+          return;
+        }
+      }
+    }
+    removeVim(vim) {
+      this._vims[vim.index] = void 0;
+      vim.index = -1;
+    }
+    loadVim(source = "https://vim.azureedge.net/samples/residence.vim", options, onLoad, onProgress, onError) {
+      const settings = new VimSettings(options);
+      const finish = (vim) => {
+        const filter = settings.getElementIdsFilter();
+        if (filter)
+          this.filterVim(vim, filter);
+        else
+          this.onVimLoaded(vim, settings);
+        this.frameContent();
+        onLoad == null ? void 0 : onLoad(vim);
+      };
+      if (typeof source === "string") {
+        this.loader.loadFromUrl(source, settings.getTransparency(), (vim) => finish(vim), (progress) => {
+          onProgress == null ? void 0 : onProgress(progress);
+        }, (error) => {
+          onError == null ? void 0 : onError(error);
+        });
+      } else {
+        const vim = this.loader.loadFromArrayBuffer(source, settings.getTransparency());
+        finish(vim);
+      }
+    }
+    onVimLoaded(vim, settings) {
+      this.addVim(vim);
+      vim.applySettings(settings);
+      this.renderer.addScene(vim.scene);
+      this.environment.adaptToContent(this.renderer.getBoundingBox());
+      this.camera.adaptToContent(this.renderer.getBoundingSphere());
+    }
+    unloadVim(vim) {
+      this.removeVim(vim);
+      this.renderer.removeScene(vim.scene);
+      if (this.selection.object.vim === vim)
+        this.selection.clear();
+    }
+    reloadVim(vim, options) {
       const settings = new VimSettings(options);
       const elementIds = settings.getElementIdsFilter();
-      const instanceIndices = elementIds ? this.vimScene.getInstanceIndicesFromElementIds(elementIds) : void 0;
-      const scene = new VimLoader().loadFromVim(this.vimScene.vim, settings.getTransparency(), instanceIndices);
-      this.unloadVim();
-      this.onVimLoaded(scene, settings);
+      const instances = elementIds.flatMap((id) => {
+        var _a;
+        return (_a = vim.getObjectFromElementId(id)) == null ? void 0 : _a.instances;
+      }).filter((i) => i !== void 0);
+      const newVim = this.loader.loadFromVim(vim.document, settings.getTransparency(), instances);
+      this.unloadVim(vim);
+      this.onVimLoaded(newVim, settings);
     }
-    filter(includedElementIds) {
-      if (!this.vimSettings)
-        throw new Error(NO_SCENE_LOADED);
-      const options = this.vimSettings.getOptions();
+    filterVim(vim, includedElementIds) {
+      const options = vim.settings.getOptions();
       options.elementIds = includedElementIds;
-      this.reloadVim(options);
+      this.reloadVim(vim, options);
     }
-    clearFilter() {
-      if (!this.vimSettings)
-        throw new Error(NO_SCENE_LOADED);
-      const options = this.vimSettings.getOptions();
-      options.elementIds = void 0;
-      this.reloadVim(options);
-    }
-    getElementIndexFromNodeIndex(nodeIndex) {
-      if (!this.vimScene)
-        throw new Error(NO_SCENE_LOADED);
-      return this.vimScene.getElementIndexFromNodeIndex(nodeIndex);
-    }
-    getElementIndexFromMeshInstance(mesh, index) {
-      if (!this.vimScene)
-        throw new Error(NO_SCENE_LOADED);
-      return this.vimScene.getElementIndexFromMesh(mesh, index);
-    }
-    highlightElementByIndex(elementIndex) {
-      if (!this.vimScene)
-        throw new Error(NO_SCENE_LOADED);
-      const nodes = this.vimScene.getNodeIndicesFromElementIndex(elementIndex);
-      if (!nodes) {
-        console.error("Could not find nodes geometry for element index: " + elementIndex);
-        return () => {
-        };
-      }
-      const geometry = createFromInstances(this.vimScene.vim.g3d, nodes);
-      geometry.applyMatrix4(this.vimSettings.getMatrix());
-      if (!geometry) {
-        console.error("Could not create geometry for element index: " + elementIndex);
-        return () => {
-        };
-      }
-      const disposer = this.highlight(geometry);
-      return () => {
-        disposer();
-        geometry.dispose();
-      };
-    }
-    getBoundingBoxForElementIndex(elementIndex) {
-      if (!this.vimScene)
-        throw new Error(NO_SCENE_LOADED);
-      const nodes = this.vimScene.getNodeIndicesFromElementIndex(elementIndex);
-      if (!nodes) {
-        console.error("Could not find nodes for : " + elementIndex);
-        return null;
-      }
-      const geometry = createFromInstances(this.vimScene.vim.g3d, nodes);
-      if (!geometry) {
-        console.error("Could not create geometry for element index: " + elementIndex);
-        return null;
-      }
-      geometry.computeBoundingBox();
-      const result = geometry.boundingBox;
-      geometry.dispose();
-      return result;
-    }
-    selectByElementIndex(elementIndex) {
-      if (!this.vimScene)
-        throw new Error(NO_SCENE_LOADED);
-      console.log("Selecting element with index: " + elementIndex);
-      console.log("Bim Element Name: " + this.vimScene.getElementName(elementIndex));
-      this.selection.select(elementIndex);
-    }
-    clearSelection() {
-      this.selection.clear();
-      console.log("Cleared Selection");
-    }
-    lookAtElementIndex(elementIndex) {
-      const box = this.getBoundingBoxForElementIndex(elementIndex);
-      if (!box) {
-        console.error("Could not create geometry for element index: " + elementIndex);
-        return;
-      }
-      const sphere = box.getBoundingSphere(new THREE__namespace.Sphere());
-      this.camera.lookAtSphere(sphere, true);
-    }
-    lookAtSelection() {
-      if (this.selection.hasSelection()) {
-        this.camera.lookAtSphere(this.selection.boundingSphere);
+    selectObject(object) {
+      if (object) {
+        console.log(`Selected Element Index: ${object.element}`);
+        this.selection.select(object);
       } else {
-        this.camera.frameScene(this.renderer.getBoundingSphere());
+        console.log("Selection Cleared");
+        this.selection.clear();
       }
     }
-    lookAtScene() {
-      this.camera.frameScene(this.renderer.getBoundingSphere());
+    lookAtObject(object) {
+      this.camera.lookAtPosition(object.getCenter());
     }
-    ApplyViewerSettings() {
-      this.environment.applyViewerSettings(this.settings);
-      this.camera.applyViewerSettings(this.settings);
+    frameObject(object) {
+      this.camera.frameSphere(object.getBoundingSphere());
     }
-    ApplyVimSettings() {
-      this.environment.applyVimSettings(this.vimSettings, this.renderer.getBoundingBox());
-      this.camera.applyVimSettings(this.renderer.getBoundingSphere());
+    frameSelection() {
+      if (this.selection.hasSelection()) {
+        this.camera.frameSphere(this.selection.getBoundingSphere());
+      } else {
+        this.frameContent();
+      }
+    }
+    frameContent() {
+      this.camera.frameSphere(this.renderer.getBoundingSphere());
     }
     defaultOnClick(hit) {
       console.log(hit);
-      if (!hit.isHit)
+      if (!hit.object)
         return;
-      this.selectByElementIndex(hit.elementIndex);
-      const entity = this.vimScene.vim.getEntity(Document.tableElement, hit.elementIndex);
-      this.camera.setTarget(hit.position);
+      this.selectObject(hit.object);
+      this.camera.setTarget(hit.object.getCenter());
       if (hit.doubleClick)
-        this.lookAtSelection();
-      console.log(entity);
+        this.frameSelection();
+      console.log(hit.object.getBimElement());
     }
-    highlight(geometry) {
-      const wireframe = new THREE__namespace.WireframeGeometry(geometry);
-      const material = new THREE__namespace.LineBasicMaterial({
-        depthTest: false,
-        opacity: 0.5,
-        color: new THREE__namespace.Color(255),
-        transparent: true
-      });
-      const line = new THREE__namespace.LineSegments(wireframe, material);
-      this.renderer.addObjects([line]);
-      return () => {
-        this.renderer.scene.remove(line);
-        wireframe.dispose();
-        material.dispose();
-      };
-    }
-  };
-  let Viewer = _Viewer;
-  __publicField(Viewer, "stateChangeEvent", "viewerStateChangedEvent");
+  }
   exports.BFast = BFast;
-  exports.BFastHeader = BFastHeader;
   exports.Document = Document;
   exports.G3d = G3d;
-  exports.MeshBuilder = MeshBuilder;
-  exports.MeshMerger = MeshMerger;
+  exports.Loader = Loader;
+  exports.Object = Object$1;
   exports.Scene = Scene;
   exports.Viewer = Viewer;
+  exports.ViewerSettings = ViewerSettings;
   exports.Vim = Vim;
-  exports.VimLoader = VimLoader;
-  exports.createBufferGeometryFromArrays = createBufferGeometryFromArrays;
-  exports.createFromInstances = createFromInstances;
-  exports.createFromMesh = createFromMesh;
-  exports.createSceneFromG3d = createSceneFromG3d;
-  exports.createSceneFromInstanciabledMeshes = createSceneFromInstanciabledMeshes;
-  exports.createSceneFromMergeableMeshes = createSceneFromMergeableMeshes;
-  exports.getInstanceMatrix = getInstanceMatrix;
-  exports.transparencyIsValid = transparencyIsValid;
-  exports.transparencyMatches = transparencyMatches;
-  exports.transparencyRequiresAlpha = transparencyRequiresAlpha;
+  exports.VimSettings = VimSettings;
   Object.defineProperty(exports, "__esModule", { value: true });
   exports[Symbol.toStringTag] = "Module";
   return exports;
