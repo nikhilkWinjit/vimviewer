@@ -277,6 +277,7 @@ var VIM = function(exports, THREE2) {
   for (let i = 0; i < 256; i++) {
     _lut[i] = (i < 16 ? "0" : "") + i.toString(16);
   }
+  var camup=new THREE__namespace.Vector3(0, 1, 0);
   const DIRECTIONS = {
     forward: new THREE__namespace.Vector3(0, 0, -1),
     back: new THREE__namespace.Vector3(0, 0, 1),
